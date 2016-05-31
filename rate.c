@@ -10,56 +10,53 @@ typedef struct {
     PLAYER_ID loser;
 } MatchResult;
 
-double logistic(double x) {
+double f(double x) {
+    // return fmax(0.0, fmin(1.0, x + 0.5));
     return 1 / (1 + exp(-x));
 }
 
-double likelihood(int matchc, MatchResult* matchv, double* ratingv) {
-    double x = 1.0;
+double mse(int matchc, MatchResult* matchv, double* ratingv) {
+    double sum = 0;
     for (int i = 0; i < matchc; i++) {
-        x *= logistic(ratingv[matchv[i].winner] - ratingv[matchv[i].loser]);
+        double e = 1.0 - f(ratingv[matchv[i].winner] - ratingv[matchv[i].loser]);
+        sum += e*e;
     }
-    return x;
-}
-
-// Prerequistit: ratein[x] = rateout[x] for all x.
-void refine(int matchc, MatchResult* matchv, double* ratein, double* rateout) {
-    for (int i = 0; i < matchc; i++) {
-        double exchange = logistic(ratein[matchv[i].loser] - ratein[matchv[i].winner]);
-        rateout[matchv[i].winner] += exchange;
-        rateout[matchv[i].loser] -= exchange;
-    }
+    return sum;
 }
 
 int main(int argc, char* argv) {
-    const char* players[] = {"loser", "winner", "richard", "jessie"};
-    double MIN_RATING = 0.0;
-    double MAX_RATING = 1.0;
-    double ratings0[] = {MIN_RATING, MAX_RATING, 0.5, 0.5};
-    double ratings1[] = {MIN_RATING, MAX_RATING, 0.5, 0.5};
-    double* ratings[2] = {ratings0, ratings1};
-    MatchResult matches[] = {{2, 0}, {3, 0}, {1, 2}, {1, 3}, {2, 3}};
+    const char* players[] = {"richard", "jessie", "x"};
+    double ratings[] = {0.5, 0.5, 0.5, 0.5, 0.5};
+    double nratings[] = {0.5, 0.5, 0.5, 0.5, 0.5};
+    MatchResult matches[] = {
+        {0, 1}, {0, 1},
+        {0, 1}, {0, 1},
+        {0, 1}, {0, 1}, {1, 2},
+    };
     int num_players = sizeof(players)/sizeof(players[0]);
     int num_matches = sizeof(matches)/sizeof(matches[0]);
 
-    double like = 0.0;
-    double nlike = likelihood(num_matches, matches, ratings[0]);
-    for (int i = 0; nlike > like ; i++) {
-        like = nlike;
-        double* old_ratings = ratings[i%2];
-        double* new_ratings = ratings[(i+1)%2];
-
+    double err = mse(num_matches, matches, ratings);
+    double nerr = err;
+    do {
+        // Commit the new ratings.
         for (int j = 0; j < num_players; j++) {
-            printf("%f ", old_ratings[j]);
-            new_ratings[j] = old_ratings[j];
+            ratings[j] = nratings[j];
+            printf("%f ", ratings[j]);
         }
-        printf("\n");
+        err = nerr;
+        printf(" ERR %f\n", err);
 
-        refine(num_matches, matches, old_ratings, new_ratings);
-        new_ratings[0] = MIN_RATING;
-        new_ratings[1] = MAX_RATING;
-        nlike = likelihood(num_matches, matches, new_ratings);
-    }
-
+        // Refine the ratings.
+        for (int j = 0; j < num_matches; j++) {
+            double exchange = f(ratings[matches[j].loser] - ratings[matches[j].winner]);
+            nratings[matches[j].winner] += exchange;
+            nratings[matches[j].loser] -= exchange;
+        }
+        for (int j = 0; j < num_players; j++) {
+            nratings[j] *= 0.99;
+        }
+        nerr = mse(num_matches, matches, nratings);
+    } while (nerr < err);
     return 0;
 }
