@@ -15,9 +15,11 @@ typedef struct {
 } MatchResult;
 
 typedef struct {
-    int playerc;
-    const char** playerv;
-    int gamec;
+    int playera;                // allocated number of players in playerv.
+    int playerc;                // count of the number of players in playerv.
+    char** playerv;
+    int gamea;                  // allocated number of games in gamev.
+    int gamec;                  // count of number of games in gamev.
     MatchResult* gamev;
 } MatchResults;
 
@@ -86,18 +88,54 @@ void my_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df) {
     }
 }
 
+// Returns the player id associated with the given player. Adds the player to
+// the players list if it is not already present.
+//
+// The name will be either stored in the playerv vector, or freed by this
+// function.
+int player_id(MatchResults* matches, char* name) {
+    for (int i = 0; i < matches->playerc; i++) {
+        if (strcmp(matches->playerv[i], name) == 0) {
+            free(name);
+            return i;
+        }
+    }
+
+    if (matches->playerc == matches->playera) {
+        matches->playera *= 2;
+        matches->playerv = realloc(matches->playerv, matches->playera);
+    }
+
+    int id = matches->playerc;
+    matches->playerv[id] = name;
+    matches->playerc++;
+    return id;
+}
+
 int main(int argc, char* argv) {
-    const char* players[] = {"richard", "jessie", "x"};
-    MatchResult games[] = {
-        {0, 1}, {1, 2}, {2, 1},
-    };
-
     MatchResults matches;
-    matches.playerv = players;
-    matches.playerc = sizeof(players)/sizeof(players[0]);
-    matches.gamev = games;
-    matches.gamec = sizeof(games)/sizeof(games[0]);
+    matches.playera = 1;
+    matches.playerc = 0;
+    matches.playerv = calloc(matches.playera, sizeof(char*));
+    matches.gamea = 1;
+    matches.gamec = 0;
+    matches.gamev = malloc(matches.gamea * sizeof(MatchResult));
 
+    // Read match data from stdin.
+    char* winner;
+    char* loser;
+    while (scanf(" %ms %ms", &winner, &loser) == 2) {
+        if (matches.gamec == matches.gamea) {
+            matches.gamea *= 2;
+            matches.gamev = realloc(matches.gamev, matches.gamea);
+        }
+
+        matches.gamev[matches.gamec].winner = player_id(&matches, winner);
+        matches.gamev[matches.gamec].loser = player_id(&matches, loser);
+        matches.gamec++;
+    }
+
+    // Compute the ratings.
     gsl_multimin_function_fdf my_func;
     my_func.n = matches.playerc;
     my_func.f = &my_f;
@@ -139,5 +177,11 @@ int main(int argc, char* argv) {
 
     gsl_multimin_fdfminimizer_free(s);
     gsl_vector_free(x);
+
+    for (int i = 0; i < matches.playerc; i++) {
+        free(matches.playerv[i]);
+    }
+    free(matches.playerv);
+    free(matches.gamev);
     return 0;
 }
