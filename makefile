@@ -1,6 +1,6 @@
 
 run_flow:
-	gcc -o flow -std=c99 flow.c
+	gcc -o flow -pedantic -std=c99 -ggdb -Wall -Werror flow.c
 	./flow
 
 run_rate: 

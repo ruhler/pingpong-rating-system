@@ -1,8 +1,24 @@
 
 #include <assert.h>   // for assert
+#include <limits.h>   // for INT_MAX
+#include <stdlib.h>   // for malloc
 #include <stdio.h>    // for printf
+#include <string.h>   // for memset
 
-static int Min(int a, int b) {
+// Min --
+//   Return the smaller of two numbers.
+//
+// Inputs:
+//   a - the first number.
+//   b - the second number.
+//
+// Result:
+//   The smaller of the two numbers.
+//
+// Side effects:
+//   None.
+static int Min(int a, int b)
+{
   return a < b ? a : b;
 }
 
@@ -40,6 +56,100 @@ static int Flow(int n, int** edges, int cap, int src, int dst)
   return total;
 }
 
+// Copy --
+//   Copy a graph from src to dst.
+//
+// Inputs:
+//   n - The number of nodes.
+//   src - The n*n edges of the source graph.
+//   dst - The n*n edges to copy the source graph to.
+//
+// Results:
+//   none.
+//
+// Side effects:
+//   dst[i][j] = src[i][j] for all i, j less than n.
+static void Copy(int n, int** src, int** dst)
+{
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      dst[i][j] = src[i][j];
+    }
+  }
+}
+
+// Alloc --
+//   Allocate space for the edges of a graph with n players.
+//
+// Inputs:
+//   n - The number of nodes in the graph.
+//
+// Result:
+//   Newly allocated n*n edges initialized to 0.
+//
+// Side effects:
+//   Allocates memory that should be freed using the Free function when no
+//   longer needed.
+static int** Alloc(int n)
+{
+  int** edges = malloc(n * sizeof(int*));
+  for (int i = 0; i < n; ++i) {
+    edges[i] = malloc(n * sizeof(int));
+    memset(edges[i], 0, sizeof(int));
+  }
+  return edges;
+}
+
+// Free --
+//   Free memory for edges allocated using Alloc.
+//
+// Inputs:
+//   n - The number of of nodes in the graph.
+//   edges - The edges to free.
+//
+// Result:
+//   None.
+//
+// Side effects:
+//   Frees memory for the given edges of the graph.
+static void Free(int n, int** edges)
+{
+  for (int i = 0; i < n; ++i) {
+    free(edges[i]);
+  }
+  free(edges);
+}
+
+// FlowAll --
+//   Compute the max flow between all pairs of nodes in the given graph.
+//
+// Inputs:
+//   n - The number of nodes in the graph.
+//   edges - edges[i][j] is the capacity from node i to j in the graph.
+//
+// Result:
+//   For each pair of nodes (i, j), the max flow from i to j in the graph, or
+//   0 if i == j.
+//
+// Side effects:
+//   Allocates an edges structure using Alloc that must be free with Free when
+//   no longer needed.
+int** FlowAll(int n, int** edges)
+{
+  int** flows = Alloc(n);
+  int** copy = Alloc(n);
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      if (i != j) {
+        Copy(n, edges, copy);
+        flows[i][j] = Flow(n, copy, INT_MAX, i, j);
+      }
+    }
+  }
+  Free(n, copy);
+  return flows;
+}
+
 static void TestSimple()
 {
   // a -- 2 --> b
@@ -72,10 +182,36 @@ static void TestCapped()
   assert(Flow(4, edges, 10, 0, 3) == 1);
 }
 
+static void TestFlowAll()
+{
+  // a -- 1 --> b -- 1 --> c -- 1 --> d
+  //             \------->----- 1 -->/
+  int a[4] = {0, 1, 0, 0};
+  int b[4] = {0, 0, 1, 1};
+  int c[4] = {0, 0, 0, 1};
+  int d[4] = {0, 0, 0, 0};
+  int* edges[4] = {a, b, c, d};
+
+  int aw[4] = {0, 1, 1, 1};
+  int bw[4] = {0, 0, 1, 2};
+  int cw[4] = {0, 0, 0, 1};
+  int dw[4] = {0, 0, 0, 0};
+  int* flows_want[4] = {aw, bw, cw, dw};
+
+  int** flows_got = FlowAll(4, edges);
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      assert(flows_want[i][j] == flows_got[i][j]);
+    }
+  }
+  Free(4, flows_got);
+}
+
 int main() {
   TestSimple();
   TestMultiPath();
   TestCapped();
+  TestFlowAll();
   printf("passed\n");
   return 0;
 }
