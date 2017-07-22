@@ -150,6 +150,30 @@ int** FlowAll(int n, int** edges)
   return flows;
 }
 
+// Rate --
+//   Rate a player based on the given flows.
+//
+// Inputs:
+//   n - The number of players.
+//   flows - The pre-computed max flows between all players.
+//   p - The player to rate.
+//
+// Results:
+//   The players rating, as a number between 0 and 1.
+//
+// Side effects:
+//   None.
+static double Rate(int n, int** flows, int p)
+{
+  double rating = 0;
+  for (int i = 0; i < n; ++i) {
+    double wins = (double)flows[p][i];
+    double losses = (double)flows[i][p];
+    rating += wins / (wins + losses + 1.0);
+  }
+  return rating / (double)n;
+}
+
 static void TestSimple()
 {
   // a -- 2 --> b
@@ -207,11 +231,25 @@ static void TestFlowAll()
   Free(4, flows_got);
 }
 
+static void TestRate()
+{
+  int aw[4] = {0, 1, 1, 1};
+  int bw[4] = {0, 0, 1, 3};
+  int cw[4] = {0, 0, 0, 1};
+  int dw[4] = {0, 0, 0, 0};
+  int* flows[4] = {aw, bw, cw, dw};
+  assert(Rate(4, flows, 0) == 0.375);
+  assert(Rate(4, flows, 1) == 0.3125);
+  assert(Rate(4, flows, 2) == 0.125);
+  assert(Rate(4, flows, 3) == 0.0);
+}
+
 int main() {
   TestSimple();
   TestMultiPath();
   TestCapped();
   TestFlowAll();
+  TestRate();
   printf("passed\n");
   return 0;
 }
