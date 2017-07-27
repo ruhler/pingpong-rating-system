@@ -1,7 +1,7 @@
 
 run_flow:
-	gcc -o flow -pedantic -std=c99 -ggdb -Wall -Werror flow.c
-	./flow
+	gcc -o flow -std=c99 -ggdb -Wall -Werror flow.c
+	./flow --test
 
 run_rate: 
 	gcc -o rate -std=c99 rate.c -lgsl -lgslcblas -lm

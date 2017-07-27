@@ -174,6 +174,83 @@ static double Rate(int n, int** flows, int p)
   return rating / (double)n;
 }
 
+typedef struct {
+  size_t size;
+  char** names;
+} Players;
+
+typedef struct Match {
+  int winner;
+  int loser;
+  struct Match* next;
+} Match;
+
+// PlayerId --
+//   Get the id for the given named player.
+//   Adds the player to the players list if it is not already present.
+//
+// Inputs:
+//   name - The name of the player to get the id of. This name should by
+//          dynamically allocated using malloc. This function takes ownership
+//          of the name, using it or freeing it as appropriate.
+//   players - The existing list of players.
+static int PlayerId(char* name, Players* players)
+{
+  for (int i = 0; i < players->size; ++i) {
+    if (strcmp(name, players->names[i]) == 0) {
+      free(name);
+      return i;
+    }
+  }
+
+  // The capacity of the array is the smallest power of 2 that holds
+  // size elements. If size is equal to the capacity of the array, we double
+  // the capacity of the array, which preserves the invariant after the size is
+  // incremented.
+  size_t s = players->size++;
+  if (s > 0 && (s & (s - 1)) == 0) {
+    players->names = realloc(players->names, 2 * s * sizeof(char*));
+  }
+  players->names[s] = name;
+  return s;
+}
+
+static void Main()
+{
+  Players players = {
+    .size = 0,
+    .names = malloc(sizeof(char*))
+  };
+  Match* matches = NULL;
+
+  char* winner;
+  char* loser;
+  while (scanf(" %ms %ms", &winner, &loser) == 2) {
+    Match* match = malloc(sizeof(Match));
+    match->winner = PlayerId(winner, &players);
+    match->loser = PlayerId(loser, &players);
+    match->next = matches;
+    matches = match;
+  }
+
+  int** wins = Alloc(players.size);
+  while (matches != NULL) {
+    wins[matches->winner][matches->loser]++;
+    Match* match = matches;
+    matches = matches->next;
+    free(match);
+  }
+
+  int** flows = FlowAll(players.size, wins);
+  for (int i = 0; i < players.size; ++i) {
+    printf("%s %.2f\n", players.names[i], Rate(players.size, flows, i));
+    free(players.names[i]);
+  }
+  free(players.names);
+  Free(players.size, wins);
+  Free(players.size, flows);
+}
+
 static void TestSimple()
 {
   // a -- 2 --> b
@@ -244,13 +321,22 @@ static void TestRate()
   assert(Rate(4, flows, 3) == 0.0);
 }
 
-int main() {
+static void TestAll()
+{
   TestSimple();
   TestMultiPath();
   TestCapped();
   TestFlowAll();
   TestRate();
   printf("passed\n");
+}
+
+int main(int argc, char* argv[]) {
+  if (argc > 1 && strcmp(argv[1], "--test") == 0) {
+    TestAll();
+  } else {
+    Main();
+  }
   return 0;
 }
 
