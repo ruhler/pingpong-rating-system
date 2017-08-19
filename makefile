@@ -1,4 +1,8 @@
 
+run_fixed:
+	gcc -o fixed -std=c99 -ggdb -Wall -Werror fixed.c
+	./fixed
+
 run_flow:
 	gcc -o flow -std=c99 -ggdb -Wall -Werror flow.c
 	./flow --test
