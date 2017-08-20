@@ -3,18 +3,7 @@
 #include <stdlib.h>   // for malloc, free
 #include <string.h>   // for strcmp
 
-// Data --
-//   Information about players and match history.
-//
-// Fields:
-//   n - The total number of players.
-//   players - The names of the players by player id.
-//   wins - wins[i][j] is the number of matches player i won against player j.
-typedef struct {
-  size_t n;
-  char** players;
-  size_t** wins;
-} Data;
+#include "rate.h"
 
 static size_t PlayerId(char* name, Data* data, size_t* capacity);
 static Data* ReadData();
@@ -157,9 +146,33 @@ static void PrintData(Data* data)
   }
 }
 
+// PrintRatings --
+//   Print the given ratings in human readable form.
+//
+// Inputs:
+//   data - the match data.
+//   ratings - the ratings to print.
+//
+// Result: 
+//   none.
+//
+// Side effects:
+//   Prints the ratings to stdout.
+static void PrintRatings(Data* data, double* ratings)
+{
+  printf("== Ratings ==\n");
+  for (size_t i = 0; i < data->n; ++i) {
+    printf("%10s %1.4f\n", data->players[i], ratings[i]);
+  }
+}
+
 int main() {
   Data* data = ReadData();
   PrintData(data);
+
+  double ratings[data->n];
+  FlowRate(data, ratings);
+  PrintRatings(data, ratings);
   FreeData(data);
   return 0;
 }
