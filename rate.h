@@ -29,5 +29,6 @@ typedef struct {
 //   Sets rating[i] to the rating of the ith player.
 void FlowRate(Data* data, double ratings[]);
 void ProbRate(Data* data, double ratings[]);
+void FixedRate(Data* data, double ratings[]);
 
 #endif//RATE_H_

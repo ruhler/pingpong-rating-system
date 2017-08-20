@@ -1,57 +1,102 @@
 
+#include <assert.h>   // for assert
 #include <math.h>     // for fabs
-#include <stdlib.h>   // for strtod
-#include <stdio.h>    // for fprintf, printf, stderr
+#include <stdio.h>    // for printf
+#include <stdlib.h>   // for malloc
 
+#include "rate.h"
+
+// Edge --
+//   r - The rate of games the src player has won over the dst player.
+//   c - The weight of the edge.
 typedef struct {
-  double x;
-  double p;
-  double y;
-  double q;
-  double z;
   double r;
-  double a;
-  double b;
-} Model;
+  double c;
+} Edge;
 
-double fa(Model* m) {
-  return (m->r * m->z) / (m->r + m->p)
-    + ((m->p) / (m->r + m->p)) * (m->x * m->b) /
-      (m->x * m->b + (1 - m->x) * (1 - m->b));
-} 
+#define MAX_ERR_THRESHOLD 0.0001
 
-double fb(Model* m) {
-  return (m->q * m->y) / (m->q + m->p)
-    + ((m->p) / (m->q + m->p)) * ((1 - m->x) * m->a) /
-      ((1 - m->x) * m->a + m->x * (1 - m->a));
-} 
-
-int main(int argc, char* argv[])
+// RatePlayer --
+//   Determine the rating of the player with id p.
+//
+// Inputs:
+//   n - The total number of players.
+//   edges - The win percentages and edge weights of all players
+//   p - The player to compute the rating for.
+static double RatePlayer(size_t n, Edge** edges, size_t p)
 {
-  if (argc != 9) {
-    fprintf(stderr, "fixed x p y q z r a b\n");
-    return 1;
+  printf("RatePlayer %zi\n", p);
+  double rs[n];
+  for (size_t k = 0; k < n; ++k) {
+    rs[k] = 0;
+  }
+  rs[p] = 0.5;
+
+  double max_err = 1.0;
+  for (size_t i = 0; i < 1000 && max_err > MAX_ERR_THRESHOLD; ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      printf("%1.4f ", rs[j]);
+    }
+    printf("\n");
+
+    max_err = 0;
+    for (size_t j = 0; j < n; ++j) {
+      if (j != p) {
+        double rj = edges[p][j].c * edges[p][j].r;
+        for (size_t k = 0; k < n; ++k) {
+          if (k != j && k != p) {
+            if (edges[k][j].c > 0) {
+              double x = rs[k];
+              double y = edges[k][j].r;
+              rj += edges[k][j].c * (x * y / (x * y + (1 - x) * (1 - y)));
+            }
+          }
+        }
+        max_err = fmax(max_err, fabs(rj - rs[j]));
+        rs[j] = rj;
+      }
+    }
   }
 
-  Model m;
-  m.x = strtod(argv[1], NULL);
-  m.p = strtod(argv[2], NULL);
-  m.y = strtod(argv[3], NULL);
-  m.q = strtod(argv[4], NULL);
-  m.z = strtod(argv[5], NULL);
-  m.r = strtod(argv[6], NULL);
-  m.a = strtod(argv[7], NULL);
-  m.b = strtod(argv[8], NULL);
+  if (max_err > MAX_ERR_THRESHOLD) {
+    printf("(Fixed rate error threshold not achieved)\n");
+  }
 
-  double a;
-  double b;
-  do {
-    a = m.a;
-    b = m.b;
-    printf("%1.5f  %1.5f\n", a, b);
-    m.a = fa(&m);
-    m.b = fb(&m);
-  } while (fabs(m.a - a) + fabs(m.b - b) > 0.000001);
-  return 0;
+  double rating = 0;
+  for (size_t i = 0; i < n; ++i) {
+    rating += rs[i];
+  }
+  return rating / n;
 }
 
+void FixedRate(Data* data, double ratings[])
+{
+  // Convert wins and losses to win rates and edge weights.
+  Edge* edges[data->n];
+  for (size_t j = 0; j < data->n; ++j) {
+    edges[j] = malloc(data->n * sizeof(Edge));
+  }
+
+  for (size_t j = 0; j < data->n; ++j) {
+    size_t total_games = 0;
+    for (size_t k = 0; k < data->n; ++k) {
+      total_games += data->wins[k][j] + data->wins[j][k];
+    }
+
+    for (size_t k = 0; k < data->n; ++k) {
+      size_t games = data->wins[k][j] + data->wins[j][k];
+      if (games == 0) {
+        edges[k][j].r = 0.5;
+        edges[k][j].c = 0;
+      } else {
+        assert(total_games != 0);
+        edges[k][j].r = (double)data->wins[k][j] / (double)games;
+        edges[k][j].c = (double)games / (double)total_games;
+      }
+    }
+  }
+  
+  for (size_t p = 0; p < data->n; ++p) {
+    ratings[p] = RatePlayer(data->n, edges, p);
+  }
+}

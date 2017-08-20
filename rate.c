@@ -180,6 +180,10 @@ int main() {
   ProbRate(data, ratings);
   PrintRatings(data, ratings);
 
+  printf("FixedRate...\n");
+  FixedRate(data, ratings);
+  PrintRatings(data, ratings);
+
   FreeData(data);
   return 0;
 }
