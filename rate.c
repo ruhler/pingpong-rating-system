@@ -39,7 +39,7 @@ static size_t PlayerId(char* name, Data* data, size_t* capacity)
   }
 
   if (*capacity == data->n) {
-    *capacity *= 2;
+    *capacity = (*capacity == 0) ? 1 : 2 * (*capacity);
     data->players = realloc(data->players, *capacity * sizeof(char*));
     data->wins = realloc(data->wins, *capacity * sizeof(size_t*));
     for (size_t i = 0; i < data->n; ++i) {
@@ -49,7 +49,10 @@ static size_t PlayerId(char* name, Data* data, size_t* capacity)
 
   data->players[data->n] = name;
   data->wins[data->n] = malloc(*capacity * sizeof(size_t));
-  memset(data->wins[data->n], 0, *capacity * sizeof(size_t));
+  for (size_t i = 0; i < data->n; ++i) {
+    data->wins[i][data->n] = 0;
+    data->wins[data->n][i] = 0;
+  }
   return data->n++;
 }
 
@@ -172,13 +175,13 @@ int main() {
 
   double ratings[data->n];
 
-  printf("FlowRate...\n");
-  FlowRate(data, ratings);
-  PrintRatings(data, ratings);
+//  printf("FlowRate...\n");
+//  FlowRate(data, ratings);
+//  PrintRatings(data, ratings);
 
-  printf("ProbRate...\n");
-  ProbRate(data, ratings);
-  PrintRatings(data, ratings);
+//  printf("ProbRate...\n");
+//  ProbRate(data, ratings);
+//  PrintRatings(data, ratings);
 
   printf("FixedRate...\n");
   FixedRate(data, ratings);
