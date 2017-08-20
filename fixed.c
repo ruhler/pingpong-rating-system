@@ -25,7 +25,6 @@ typedef struct {
 //   p - The player to compute the rating for.
 static double RatePlayer(size_t n, Edge** edges, size_t p)
 {
-  printf("RatePlayer %zi\n", p);
   double rs[n];
   for (size_t k = 0; k < n; ++k) {
     rs[k] = 0;
@@ -34,22 +33,16 @@ static double RatePlayer(size_t n, Edge** edges, size_t p)
 
   double max_err = 1.0;
   for (size_t i = 0; i < 1000 && max_err > MAX_ERR_THRESHOLD; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      printf("%1.4f ", rs[j]);
-    }
-    printf("\n");
-
     max_err = 0;
     for (size_t j = 0; j < n; ++j) {
       if (j != p) {
         double rj = edges[p][j].c * edges[p][j].r;
         for (size_t k = 0; k < n; ++k) {
           if (k != j && k != p) {
-            if (edges[k][j].c > 0) {
-              double x = rs[k];
-              double y = edges[k][j].r;
-              rj += edges[k][j].c * (x * y / (x * y + (1 - x) * (1 - y)));
-            }
+            double x = rs[k];
+            double y = edges[k][j].r;
+            assert(x * y + (1 - x) * (1 - y) > 0);
+            rj += edges[k][j].c * (x * y / (x * y + (1 - x) * (1 - y)));
           }
         }
         max_err = fmax(max_err, fabs(rj - rs[j]));
@@ -90,8 +83,10 @@ void FixedRate(Data* data, double ratings[])
         edges[k][j].c = 0;
       } else {
         assert(total_games != 0);
-        edges[k][j].r = (double)data->wins[k][j] / (double)games;
-        edges[k][j].c = (double)games / (double)total_games;
+        double w = (double)data->wins[k][j];
+        double g = (double)games;
+        edges[k][j].r = (w + 0.5) / (g + 1);
+        edges[k][j].c = g / (double)total_games;
       }
     }
   }
