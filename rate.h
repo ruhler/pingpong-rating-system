@@ -15,8 +15,8 @@ typedef struct {
   size_t** wins;
 } Data;
 
-// FlowRate --
-//   Rate players using the flow algorithm.
+// XXXRate --
+//   Rate players using the XXX algorithm.
 // 
 // Inputs:
 //   data - The player data.
@@ -28,5 +28,6 @@ typedef struct {
 // Side effects:
 //   Sets rating[i] to the rating of the ith player.
 void FlowRate(Data* data, double ratings[]);
+void ProbRate(Data* data, double ratings[]);
 
 #endif//RATE_H_
