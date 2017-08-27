@@ -183,8 +183,12 @@ int main() {
 //  ProbRate(data, ratings);
 //  PrintRatings(data, ratings);
 
-  printf("FixedRate...\n");
-  FixedRate(data, ratings);
+//  printf("FixedRate...\n");
+//  FixedRate(data, ratings);
+//  PrintRatings(data, ratings);
+
+  printf("Prob2Rate...\n");
+  Prob2Rate(data, ratings);
   PrintRatings(data, ratings);
 
   FreeData(data);
