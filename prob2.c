@@ -143,7 +143,7 @@ void Prob2Rate(Data* data, double ratings[])
   gsl_vector* x = gsl_vector_calloc(data->n);
   const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_conjugate_fr;
   gsl_multimin_fdfminimizer* s = gsl_multimin_fdfminimizer_alloc(T, data->n);
-  gsl_multimin_fdfminimizer_set(s, &sse, x, 0.01, 1e-4);
+  gsl_multimin_fdfminimizer_set(s, &sse, x, 0.01, 1e-5);
 
   int status = GSL_CONTINUE;
   for (int i = 0; status == GSL_CONTINUE && i < 1000; i++) {
