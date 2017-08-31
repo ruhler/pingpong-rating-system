@@ -1,0 +1,49 @@
+\documentclass{article}
+
+\begin{document}
+\title{A Ping Pong Rating System}
+\author{Richard Uhler}
+\maketitle
+
+\section{Introduction}
+This document describes a ping pong rating system for rating players in a
+local league. The format of the league is that every month participating
+players are grouped with approximately four other players to play against. The
+ratings are used to choose the groups; players are grouped with other players
+of a similar level.
+
+We assume that the large majority of players are amateur, without any prior
+ping pong rating and not competing nationally or otherwise outside of the
+local league. In total we expect not more than a few hundred distinct players
+to ever participate in the league. Individual players will play around four
+matches a month, and there will not be more than around one hundred players
+participating in any single month.
+
+The primary goal of the rating system is to quickly establish a decent rank
+order of players used to select the groups each month. Secondary goals of the
+rating system are for the benefit and enjoyment of the players themselves:
+\begin{itemize}
+  \item A player should have a sense of how likely they are to win a match
+    against another player by their ratings.
+  \item For the most part, players should have unique ratings so that you can
+    tell the difference between any two players.
+  \item It is easy for players to remember and share their ratings with other
+    players.
+  \item Players are motivated to play more games rather than less games.
+\end{itemize}
+
+In a nutshell, we assume players have ratings such that the probability
+of a player winning a match against another player is a logistics function of
+the difference in their player ratings and that ratings are normally
+distributed. We then estimate player ratings as those ratings that maximize
+the likelihood of the observed match results. Finally, we scale the estimated
+player ratings so that they are likely to be in the range from 0 to 2000, with
+the average player having a rating of 1000.
+
+\section{TODO}
+* The Logistics Function - 1 / (1 + exp(-(x-y))) probability function
+* Normal Distribution of Ratings - normal distribution of ratings (with simple motivation of one match)
+* Maximum Likelihood function to maximize, transform it into minimize sum of squared error
+* choice of sigma squared
+* Scaling Factor scaling of ratings to $N(1000, 250^2)$
+\end{document}
