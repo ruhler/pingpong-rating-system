@@ -1,4 +1,6 @@
 \documentclass{article}
+\usepackage{amsfonts}
+\usepackage{pgfplots}
 
 \begin{document}
 \title{A Ping Pong Rating System}
@@ -39,6 +41,59 @@ distributed. We then estimate player ratings as those ratings that maximize
 the likelihood of the observed match results. Finally, we scale the estimated
 player ratings so that they are likely to be in the range from 0 to 2000, with
 the average player having a rating of 1000.
+
+\section{The Logistics Function}
+Assume players have ratings such that the probability of a player winning a
+match against another player is a logistics function of the difference in
+their player ratings.
+
+For each player $i$, we assign a rating $x_i \in \mathbb{R}$. We assign the
+ratings for each player so that, given any two players $i$ and $j$ with
+ratings $x_i$ and $x_j$, the probability that player $i$ beats player $j$ in a
+match is:
+\begin{equation}
+  f(x_i, x_j) = \frac{1}{1 + e^{-k(x_i - x_j)}}
+\end{equation}
+
+\begin{figure}
+  \caption{The logistics function}
+  \label{fig:logistics}
+ \begin{tikzpicture}
+   \begin{axis}[grid=major, xmin=-8, xmax=8, axis x line=bottom,
+         xtick={0}, ytick={0,.5,1}, ymax=1, axis y line=middle,
+         xticklabels={},
+         width=\textwidth, height=\axisdefaultheight, 
+         xlabel={$(x_i-x_j)$}, ylabel={$f(x_i, x_j)$},
+       ]
+      \addplot[mark=none, samples=100, domain=-8:8, ]
+         (x,{1/(1+exp(-x))});
+     \end{axis}
+ \end{tikzpicture}
+ \end{figure}
+
+The function $f(x_i, x_j)$ is a logistics function in $(x_i - x_j)$, the
+difference between the two players' ratings. The graph of the logistics
+function is shown in figure \ref{fig:logistics}. The logistics function is
+good to use for our purposes because it behaves as we would hope and expect
+for the probability of a player winning a match against another player. In
+particular:
+\begin{itemize}
+  \item The range of the function is $f(x_i, x_j) \in [0, 1]$, consistent with
+    it being a measure of probability.
+  \item For two players with the same rating, each player is as likely to win
+    the match: $f(x, x) = \frac{1}{1 + e^0} = 0.5$.
+  \item The probability of player $i$ losing against player $j$ is the same
+    as the probability of player $j$ winning against player $i$:
+    \begin{equation}
+      1 - f(x_i, x_j) =
+      1 - \frac{1}{1 + e^{-k(x_i - x_j)}} =
+      \frac{(1 + e^{-k(x_i - x_j)}) - 1}{1 + e^{-k(x_i - x_j)}} =
+      \frac{e^{-k(x_i - x_j)}}{1 + e^{-k(x_i - x_j)}} =
+      \frac{1}{e^{-k(x_j - x_i)} + 1} = f(x_j, f_i)
+    \end{equation}
+  * As x_i increases with fixed x_j, odds of player i winning go up.
+  * As x_j increases with fixed x_i, odds of player j winning go up.
+\end{itemize}
 
 \section{TODO}
 * The Logistics Function - 1 / (1 + exp(-(x-y))) probability function
