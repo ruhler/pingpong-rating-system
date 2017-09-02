@@ -80,24 +80,122 @@ particular:
 \begin{itemize}
   \item The range of the function is $f(x_i, x_j) \in [0, 1]$, consistent with
     it being a measure of probability.
+
   \item For two players with the same rating, each player is as likely to win
     the match: $f(x, x) = \frac{1}{1 + e^0} = 0.5$.
-  \item The probability of player $i$ losing against player $j$ is the same
-    as the probability of player $j$ winning against player $i$:
+
+  \item More generally, the probability of player $i$ losing against player
+    $j$ is the same as the probability of player $j$ winning against player
+    $i$:
     \begin{equation}
       1 - f(x_i, x_j) =
       1 - \frac{1}{1 + e^{-k(x_i - x_j)}} =
       \frac{(1 + e^{-k(x_i - x_j)}) - 1}{1 + e^{-k(x_i - x_j)}} =
       \frac{e^{-k(x_i - x_j)}}{1 + e^{-k(x_i - x_j)}} =
-      \frac{1}{e^{-k(x_j - x_i)} + 1} = f(x_j, f_i)
+      \frac{1}{e^{-k(x_j - x_i)} + 1} = f(x_j, x_i)
     \end{equation}
-  * As x_i increases with fixed x_j, odds of player i winning go up.
-  * As x_j increases with fixed x_i, odds of player j winning go up.
+
+  \item The greater the rating $x_i$ of player $i$ is relative to the rating
+    $x_j$ of player $j$, the more likely player $i$ is of beating player $j$.
+    This is most easily confirmed by the upward sloping of the graph in figure
+    \ref{fig:logistics}.
+
+  \item If player $i$ is rated significantly higher than player $j$, player
+    $i$ will beat player $j$ with almost certainty.
+    \begin{equation}
+      \lim_{x_i \to \infty} f(x_i, x_j) = \frac{1}{1 + e^{-\infty}} = 1
+    \end{equation}
 \end{itemize}
 
+Note that the probability of a player winning a match against another player
+depends only on the players' relative ratings, not the absolute value of their
+ratings. We could, if we like, shift all of the ratings by any constant $c$
+without impacting the likely match outcomes:
+\begin{equation}
+  f(x_i - c, x_j - c) =
+  \frac{1}{1 + e^{-k(x_i - c - x_j + c)}} =
+  \frac{1}{1 + e^{-k(x_i - x_j)}} = f(x_i, x_j)
+\end{equation}
+
+We will take advantage of this fact later to assign a particular absolute
+rating to the average player.
+
+We can scale the ratings by some constant factor $a$ without impacting the
+likely match outcomes as long as we scale the factor $k$ used in the
+logistics function appropriately:
+\begin{equation}
+  f_k(a x_i, a x_j) =
+  \frac{1}{1 + e^{-k(a x_i - a x_j)}} =
+  \frac{1}{1 + e^{-ak(x_i - x_j)}} = f_{ak}(x_i, x_j)
+\end{equation}
+
+In particular, if we choose to scale up the ratings by some constant factor
+$a$, we need to scale down the factor $k$ in the logistics function to get the
+same likely match outcomes.
+
+\section{Normal Distribution of Ratings}
+\begin{figure}
+  \caption{A normal distribution}
+  \label{fig:normal}
+ \begin{tikzpicture}
+   \begin{axis}[grid=major, xmin=-5, xmax=5, axis x line=bottom,
+         xtick={0}, ytick={0,1}, ymax=1, axis y line=middle,
+         xticklabels={},
+         width=\textwidth, height=\axisdefaultheight, 
+         xlabel={$x_i$}, ylabel={$g(x_i)$},
+       ]
+      \addplot[mark=none, samples=100, domain=-5:5, ]
+      (x,{exp(-x*x)/sqrt(2*pi)});
+     \end{axis}
+ \end{tikzpicture}
+ \end{figure}
+Imagine there are only two players $i$ and $j$, and that these players have
+played a single match in which player $i$ beat player $j$. What ratings $x_i$
+and $x_j$ should we infer for the players?
+
+We have observed that player $i$ beat player $j$ in $100\%$ of the matches
+they played. The best choice for $x_i$ and $x_j$ that makes $f(x_i, x_j) = 1$
+is to set $x_i$ and $x_j$ as far apart as possible. In other words,
+$x_i = \infty$ and $x_j = -\infty$. But this is absurd. Surely player $i$
+isn't an infinitely good player because he won a single match against player
+$j$. It probably wouldn't be hard to find some other player $k$ who can beat
+player $j$, meaning our estimate of $x_i = \infty$ is not very good.
+
+More realistically, player ratings will tend to be independently and
+identically distributed in some way, perhaps as a function of how much time
+the player has spent playing ping pong. If this is the case, then we expect to
+find the distribution of ratings for all players to follow a normal
+distribution, such as the one pictured in figure \ref{fig:normal}. The
+probability of a player $i$ having a rating $x_i$ is:
+\begin{equation}
+  g(x_i) = \frac{e^{\frac{-(x_i - \mu)^2}{\sigma^2}}}{\sqrt{2\pi\sigma^2}}
+\end{equation}
+
+Where $\mu$ is the mean player rating and $\sigma^2$ is the variance in player
+ratings.
+
+Assuming reasonable values for $\mu$ and $\sigma^2$, there is almost no chance
+that player $i$ has rating $x_i = \infty$. By taking the normal distribution
+of player ratings into account, we can make much more reasonable estimates for
+player ratings. After all, even if players $i$ and $j$ are evenly matched,
+it's not that unlikely for player $i$ to have beaten player $j$ in a single
+match.
+
+We already saw that we are free to shift the player ratings by an
+arbitrary constant $c$ without effecting the likely match outcomes, so we can
+choose $\mu$ to be whatever we like. For simplicity to start, we'll choose
+$\mu = 0$. We are also allowed to scale player ratings by an arbitrary factor
+$a$, so we have the option to choose any value for $\sigma^2$ that we like,
+but only if we also adjust the $k$ factor in the logistics function
+appropriately. While we are free to pick either one of $\sigma^2$ or $k$ to be
+whatever we like, the product $\sigma^2 k^2$ must remain fixed.
+
+The constant $S = \sigma^2 k^2$ is an intrinsic property of the world,
+representing how large the range of ping pong player skill levels is. For now
+we will leave the logistics function and normal distribution generic in $k$
+and $\sigma^2$ rather than worry about how to determine the constant $S$.
+
 \section{TODO}
-* The Logistics Function - 1 / (1 + exp(-(x-y))) probability function
-* Normal Distribution of Ratings - normal distribution of ratings (with simple motivation of one match)
 * Maximum Likelihood function to maximize, transform it into minimize sum of squared error
 * choice of sigma squared
 * Scaling Factor scaling of ratings to $N(1000, 250^2)$
