@@ -1,5 +1,6 @@
 \documentclass{article}
 \usepackage{amsfonts}
+\usepackage{amsmath}
 \usepackage{pgfplots}
 
 \begin{document}
@@ -87,13 +88,12 @@ particular:
   \item More generally, the probability of player $i$ losing against player
     $j$ is the same as the probability of player $j$ winning against player
     $i$:
-    \begin{equation}
-      1 - f(x_i, x_j) =
-      1 - \frac{1}{1 + e^{-k(x_i - x_j)}} =
-      \frac{(1 + e^{-k(x_i - x_j)}) - 1}{1 + e^{-k(x_i - x_j)}} =
-      \frac{e^{-k(x_i - x_j)}}{1 + e^{-k(x_i - x_j)}} =
-      \frac{1}{e^{-k(x_j - x_i)} + 1} = f(x_j, x_i)
-    \end{equation}
+    \begin{align}
+      1 - f(x_i, x_j) &= 1 - \frac{1}{1 + e^{-k(x_i - x_j)}} & \\
+                      &= \frac{(1 + e^{-k(x_i - x_j)}) - 1}{1 + e^{-k(x_i - x_j)}} & \\
+                      &= \frac{e^{-k(x_i - x_j)}}{1 + e^{-k(x_i - x_j)}} & \\
+                      &= \frac{1}{e^{k(x_i - x_j)} + 1} &= f(x_j, x_i) \\
+    \end{align}
 
   \item The greater the rating $x_i$ of player $i$ is relative to the rating
     $x_j$ of player $j$, the more likely player $i$ is of beating player $j$.
@@ -168,7 +168,7 @@ find the distribution of ratings for all players to follow a normal
 distribution, such as the one pictured in figure \ref{fig:normal}. The
 probability of a player $i$ having a rating $x_i$ is:
 \begin{equation}
-  g(x_i) = \frac{e^{\frac{-(x_i - \mu)^2}{\sigma^2}}}{\sqrt{2\pi\sigma^2}}
+  g(x_i) = \frac{e^{\frac{-(x_i - \mu)^2}{2 \sigma^2}}}{\sqrt{2\pi\sigma^2}}
 \end{equation}
 
 Where $\mu$ is the mean player rating and $\sigma^2$ is the variance in player
@@ -195,8 +195,179 @@ representing how large the range of ping pong player skill levels is. For now
 we will leave the logistics function and normal distribution generic in $k$
 and $\sigma^2$ rather than worry about how to determine the constant $S$.
 
-\section{TODO}
-* Maximum Likelihood function to maximize, transform it into minimize sum of squared error
-* choice of sigma squared
-* Scaling Factor scaling of ratings to $N(1000, 250^2)$
+\section{Raw Rating Definition}
+Players' ratings are chosen to be those ratings that maximize the likehood of
+the observed match results and player ratings. Assuming a set of players
+$i \in \mathbb{P}$ and (possibly duplicate) match results
+$(i, j) \in \mathbb{M}$, where $(i, j)$ means the player $i$ beat the player
+$j$ in a single match, we choose $x_i$ to maximize:
+\begin{equation}
+  L(x, \mathbb{P}, \mathbb{M}) = \prod_{i \in \mathbb{P}} g(x_i)  \prod_{(i, j) \in \mathbb{M}} f(x_i, x_j)
+\end{equation}
+
+To solve for the values of $x_i$ that maximize $L(x, \mathbb{P}, \mathbb{M})$,
+we take partial derivitives of $L$ and set them equal to $0$. For a particular
+$x_k$ we have:
+
+\begin{equation}
+  \frac{\partial}{\partial x_k} \prod_{i \in \mathbb{P}} g(x_i)  \prod_{(i, j) \in \mathbb{M}} f(x_i, x_j) = 0
+\end{equation}
+
+Pulling out the factors that don't depend on $x_k$, we have:
+\begin{equation}
+  \prod_{i \in \mathbb{P}, i \ne k} g(x_i)
+  \prod_{(i, j) \in \mathbb{M}, i \ne k, j \ne k} f(x_i, x_j)
+  \frac{\partial}{\partial x_k} g(x_j)
+      \prod_{(k, j) \in \mathbb{M}} f(x_k, x_j)
+      \prod_{(j, k) \in \mathbb{M}} f(x_j, x_k)
+      = 0
+\end{equation}
+
+The interesting part is when the partial derivitive is zero:
+\begin{equation} \label{eq:partialproduct}
+  \frac{\partial}{\partial x_k} g(x_j)
+      \prod_{(k, j) \in \mathbb{M}} f(x_k, x_j)
+      \prod_{(j, k) \in \mathbb{M}} f(x_j, x_k)
+      = 0
+\end{equation}
+
+This equation takes the form
+\begin{equation}
+  \frac{d}{dx}[a(x) b(x) c(x) \cdots] = 0
+\end{equation}
+
+By the product rule this is:
+\begin{equation}
+    a'(x) b(x) c(x) \cdots
+  + a(x) b'(x) c(x) \cdots
+  + a(x) b(x) c'(x) \cdots + \ldots = 0
+\end{equation}
+
+Factoring out the common product:
+\begin{equation}
+  a(x) b(x) c(x) \cdots (
+      \frac{a'(x)}{a(x)}
+    + \frac{b'(x)}{b(x)}
+    + \frac{c'(x)}{c(x)}
+    + \ldots) = 0
+\end{equation}
+
+Assuming none of $a(x)$, $b(x)$, $c(x)$, $\ldots$ are 0 in the region of
+interest, this reduces to:
+\begin{equation}
+      \frac{a'(x)}{a(x)}
+    + \frac{b'(x)}{b(x)}
+    + \frac{c'(x)}{c(x)}
+    + \ldots = 0
+\end{equation}
+
+In equation \ref{eq:partialproduct}, there are three types of terms: $g(x_k)$, 
+$f(x_k, x_j)$, and $f(x_j, x_k)$. Let's consider each in turn.
+
+\begin{equation}
+  g'(x_k) = \frac{d}{d x_k} [\frac{e^{\frac{-x_k^2}{\sigma^2}}}{\sqrt{2\pi\sigma^2}}]
+  = \frac{e^{\frac{-(x_k - \mu)^2}{\sigma^2}}}{\sqrt{2\pi\sigma^2}}
+  (-2 \frac{x_k}{2 \sigma^2})
+    = -g(x_k)\frac{x_k}{\sigma^2}
+\end{equation}
+\begin{equation}
+  \frac{g'(x_k)}{g(x_k)} = -\frac{x_k}{\sigma^2}
+\end{equation}
+
+\begin{equation}
+  f'(x_k, x_j) = \frac{\partial}{\partial x_k} [\frac{1}{1 + e^{-k(x_i - x_j)}}]
+  = \frac{k e^{-k(x_k - x_j)}}{(1 + e^{-k(x_k - x_j)})^2}
+  = \frac{k e^{-k(x_k - x_j)}}{1 + e^{-k(x_k - x_j)}} f(x_k, x_j)
+\end{equation}
+\begin{equation}
+  \frac{f'(x_k, x_j)}{f(x_k, x_j)}
+  = \frac{k e^{-k(x_k - x_j)}}{1 + e^{-k(x_k - x_j)}}
+  = \frac{k}{e^{k(x_k - x_j)} + 1} = k f(x_j, x_k)
+\end{equation}
+
+The case for $f(x_j, x_k)$ is the same as $f(x_k, x_j)$ with the opposite
+sign.
+
+Combining all of these together, we have:
+\begin{equation}
+  - \frac{x_k}{\sigma^2}
+  + \sum_{(k, j) \in \mathbb{M}} k f(x_j, x_k)
+  - \sum_{(j, k) \in \mathbb{M}} k f(x_k, x_j) = 0
+\end{equation}
+
+Because we know $f(x_j, x_k) = 1 - f(x_k, x_j)$, we can reorganize the sum:
+\begin{equation}
+  - \frac{x_k}{\sigma^2}
+  + \sum_{(k, j) \in \mathbb{M}} k (1 - f(x_k, x_h))
+  - \sum_{(j, k) \in \mathbb{M}} k f(x_k, x_j)
+= - \frac{x_k}{\sigma^2}
+  + k \sum_{(k, j) \in \mathbb{M}} 1
+  - k (\sum_{(j, k) \in \mathbb{M}} f(x_k, x_j) + \sum_{(k, j) \in \mathbb{M}} f(x_k, x_j)) 
+\end{equation}
+
+If we let $W_k$ be the total number of matches won by player $k$, and $M_{k,j}$
+be the total number of matches played between player $k$ and player $j$, then
+the equation becomes:
+\begin{equation}
+  - \frac{x_k}{\sigma^2} + k W_k - k \sum_{j \in \mathbb{P}} M_{k,j} f(x_k, x_j) = 0
+\end{equation}
+
+Dividing by the product $k M_k$, where $M_k$ is the total number of matches
+played by player $k$, we have:
+\begin{equation}
+  - \frac{x_k}{k M_k \sigma^2} + w_k - \sum_{j \in \mathbb{P}} m_{k, j} f(x_k, x_j) = 0
+\end{equation}
+
+Where $w_k$ is the fraction of matches played by player $k$ that player $k$
+won, and $m_{k, i}$ is the fraction of matches played by player $k$ against
+player $i$. Rearranging, we get:
+\begin{equation}
+  w_k = \frac{x_k}{k M_k \sigma^2} + \sum_{j \in \mathbb{P}} m_{k, j} f(x_k, x_j)
+\end{equation}
+
+We can interpret this equation as saying we want to choose $x_k$ so that the
+observed fraction of matches won by player, $w_k$ is the weighted sum of the
+win fraction predicted by the logistics function plus an additional error term
+to correct for observed results that arise from the player not having played
+many matches. The more matches the player plays, the smaller this additional
+error term is.
+
+This equation does not have an easy analytical solution, but we can easily use
+numeric methods to compute the ratings for all players. We can approximate the
+solution to this equation by minimizing the squared difference of both sides
+of the equation. We can approximate the solution for all players by minimizing
+the sum of the squared differences for every player:
+
+\begin{equation}
+  (w_0 - (\frac{x_k}{k M_0 \sigma^2} + \sum_{j \in \mathbb{P}} m_{0, j} f(x_0, x_j)))^2
++ (w_1 - (\frac{x_k}{k M_1 \sigma^2} + \sum_{j \in \mathbb{P}} m_{1, j} f(x_1, x_j)))^2
++ (w_2 - (\frac{x_k}{k M_2 \sigma^2} + \sum_{j \in \mathbb{P}} m_{2, j} f(x_2, x_j)))^2
++ \ldots
+\end{equation}
+
+For example, this expression can be efficiently minimized using the
+Fletcher-Reeves conjugate gradient algorithm as implemented in the GNU
+Scientific Library's gsl\_multimin\_fdfminimizer\_conjugate\_fr.
+
+Notice that as the number of matches each player has played goes up, the
+parameters $k$ and $\sigma^2$ make less and less of a difference in the
+estimated player ratings. Given that is the case, we will simply take $k = 1$
+and $\sigma^2 = 1$, which gives $S = k^2 \sigma^2 = 1$\footnote{Statistics
+compiled on the distribution of USATT ratings suggest $S$ is somewhere between
+1 and 100 in practice.}
+
+\section{Normalized Ratings}
+The raw ratings described in the previous section are good for rank ordering
+players for the purposes of selecting groups, but they are not very convenient
+for the players to refer to, because they have fractional parts and can be
+positive or negative. To make it easier to refer to the player ratings, we
+scale and shift the ratings so that the players can have a simple positive
+integer rating to remember and share. Experience with USATT ratings shows that
+it is easy to remember and share ratings in the range from 0 to 3000. A
+smaller range of ratings, such as 0 to 100, would likely not provide as much
+resolution between different players as is desired. For this reason we choose
+to scale the ratings so that the average player has rating 1000 with standard
+deviation of 250, which makes it extremely unlikely that any player will end
+up with a negative rating (or, as a consequence, a rating over 2000).
+
 \end{document}
