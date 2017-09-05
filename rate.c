@@ -21,7 +21,6 @@ typedef struct {
 static size_t PlayerId(char* name, Data* data, size_t* capacity);
 static Data* ReadData();
 static void FreeData(Data* data);
-static void PrintRatings(Data* data, double* ratings);
 
 static double sse_f(const gsl_vector* v, void* params);
 static void sse_df(const gsl_vector* v, void* params, gsl_vector* df);
@@ -134,26 +133,6 @@ static void FreeData(Data* data)
   free(data->players);
   free(data->wins);
   free(data);
-}
-
-// PrintRatings --
-//   Print the given ratings in human readable form.
-//
-// Inputs:
-//   data - the match data.
-//   ratings - the ratings to print.
-//
-// Result: 
-//   none.
-//
-// Side effects:
-//   Prints the ratings to stdout.
-static void PrintRatings(Data* data, double* ratings)
-{
-  printf("== Ratings ==\n");
-  for (size_t i = 0; i < data->n; ++i) {
-    printf("%10s %1.4f\n", data->players[i], ratings[i]);
-  }
 }
 
 // We assume the following:
@@ -315,7 +294,7 @@ static void Rate(Data* data, double ratings[])
   }
 
   for (int i = 0; i < data->n; i++) {
-    ratings[i] = 1.0 / (1.0 + exp(-gsl_vector_get(s->x, i)));
+    ratings[i] = gsl_vector_get(s->x, i);
     free(p.g[i]);
   }
   free(p.g);
@@ -330,7 +309,19 @@ int main() {
   Data* data = ReadData();
   double ratings[data->n];
   Rate(data, ratings);
-  PrintRatings(data, ratings);
+
+  double var = 0;
+  for (size_t i = 0; i < data->n; ++i) {
+    var += ratings[i] * ratings[i];
+  }
+  var /= data->n;
+  double a = 250.0 / sqrt(var);
+
+  for (size_t i = 0; i < data->n; ++i) {
+    double raw = ratings[i];
+    double normal = a * raw + 1000.0;
+    printf("%10s %1.4f %.0f\n", data->players[i], raw, normal);
+  }
 
   FreeData(data);
   return 0;

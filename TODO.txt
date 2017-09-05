@@ -1,0 +1,10 @@
+* Make 'K' a parameter in addition to S2.
+* Output players sorted in order of ranking.
+  - We can make a sorted array of player ids and use that.
+* Move definition of Params and S2 to the top of rate.c.
+* Use consistent naming style for sse_ vs. other functions.
+* Compute total matches played, won, and lost per player as part of Data?
+  - To reuse both in Rate and the output.
+* Include total matches played, won, and lost in the output.
+* Use same notation (variable names) in program as in document, as best as
+  possible.
