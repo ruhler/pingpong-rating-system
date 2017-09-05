@@ -21,8 +21,14 @@ typedef struct {
 static size_t PlayerId(char* name, Data* data, size_t* capacity);
 static Data* ReadData();
 static void FreeData(Data* data);
-static void PrintData(Data* data);
+static void PrintRatings(Data* data, double* ratings);
 
+static double sse_f(const gsl_vector* v, void* params);
+static void sse_df(const gsl_vector* v, void* params, gsl_vector* df);
+static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df);
+static void Rate(Data* data, double ratings[]);
+
+
 // PlayerId --
 //   Look up or create a player id for the given player.
 //
@@ -68,7 +74,7 @@ static size_t PlayerId(char* name, Data* data, size_t* capacity)
   }
   return data->n++;
 }
-
+
 // ReadData --
 //   Read player data from stdin.
 //
@@ -107,7 +113,7 @@ static Data* ReadData()
   }
   return data;
 }
-
+
 // FreeData --
 //   Free memory used by the given data.
 //
@@ -129,39 +135,7 @@ static void FreeData(Data* data)
   free(data->wins);
   free(data);
 }
-
-// PrintData --
-//   Print the given data in human readable form for debugging purposes.
-//
-// Inputs:
-//   data - the data to print.
-//
-// Result: 
-//   none.
-//
-// Side effects:
-//   Prints the data to stdout.
-static void PrintData(Data* data)
-{
-  printf("%10s", "");
-  for (size_t i = 0; i < data->n; ++i) {
-    printf(" %10s", data->players[i]);
-  }
-  printf("\n");
-
-  for (size_t i = 0; i < data->n; ++i) {
-    printf("%10s", data->players[i]);
-    for (size_t j = 0; j < data->n; ++j) {
-      if (data->wins[i][j] > 0) {
-        printf(" %10zd", data->wins[i][j]);
-      } else {
-        printf(" %10s", "");
-      }
-    }
-    printf("\n");
-  }
-}
-
+
 // PrintRatings --
 //   Print the given ratings in human readable form.
 //
@@ -181,7 +155,7 @@ static void PrintRatings(Data* data, double* ratings)
     printf("%10s %1.4f\n", data->players[i], ratings[i]);
   }
 }
-
+
 // We assume the following:
 //  - The probability a player with rating x beats a player with rating y is 
 //    pwin(x, y) = 1 / (1 + exp(y - x)).
@@ -280,9 +254,8 @@ static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
   }
 }
 
-
-// Prob2Rate --
-//   Rate players using the Prob2 algorithm.
+// Rate --
+//   Rate players.
 // 
 // Inputs:
 //   data - The player data.
@@ -293,8 +266,7 @@ static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
 //
 // Side effects:
 //   Sets rating[i] to the rating of the ith player.
-//   See documentation in rate.h.
-static void Prob2Rate(Data* data, double ratings[])
+static void Rate(Data* data, double ratings[])
 {
   // Compute the parameters.
   Params p;
@@ -339,7 +311,7 @@ static void Prob2Rate(Data* data, double ratings[])
   }
 
   if (status != GSL_SUCCESS) {
-    printf("(Prob2Flow failed to find minimum)\n");
+    printf("(Rate failed to find minimum)\n");
   }
 
   for (int i = 0; i < data->n; i++) {
@@ -356,15 +328,10 @@ static void Prob2Rate(Data* data, double ratings[])
 
 int main() {
   Data* data = ReadData();
-  PrintData(data);
-
   double ratings[data->n];
-
-  printf("Prob2Rate...\n");
-  Prob2Rate(data, ratings);
+  Rate(data, ratings);
   PrintRatings(data, ratings);
 
   FreeData(data);
   return 0;
 }
-
