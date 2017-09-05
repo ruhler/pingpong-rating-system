@@ -175,18 +175,6 @@ int main() {
 
   double ratings[data->n];
 
-//  printf("FlowRate...\n");
-//  FlowRate(data, ratings);
-//  PrintRatings(data, ratings);
-
-//  printf("ProbRate...\n");
-//  ProbRate(data, ratings);
-//  PrintRatings(data, ratings);
-
-//  printf("FixedRate...\n");
-//  FixedRate(data, ratings);
-//  PrintRatings(data, ratings);
-
   printf("Prob2Rate...\n");
   Prob2Rate(data, ratings);
   PrintRatings(data, ratings);
