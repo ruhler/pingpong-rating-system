@@ -282,15 +282,16 @@ static void Rate(Data* data, double ratings[])
   gsl_multimin_fdfminimizer_set(s, &sse, x, 0.01, 1e-5);
 
   int status = GSL_CONTINUE;
-  for (int i = 0; status == GSL_CONTINUE && i < 1000; i++) {
+  for (int i = 0; status == GSL_CONTINUE && i < 10000; i++) {
     if (gsl_multimin_fdfminimizer_iterate(s)) {
       break;
     }
-    status = gsl_multimin_test_gradient(s->gradient, 1e-3);
+    status = gsl_multimin_test_gradient(s->gradient, 1e-5);
   }
 
   if (status != GSL_SUCCESS) {
-    printf("(Rate failed to find minimum)\n");
+    fprintf(stderr, "Rate failed to find minimum\n");
+    abort();
   }
 
   for (int i = 0; i < data->n; i++) {
@@ -305,6 +306,60 @@ static void Rate(Data* data, double ratings[])
   gsl_vector_free(x);
 }
 
+static size_t* Min(size_t* a, size_t* b)
+{
+  return a < b ? a : b;
+}
+
+// SortPlayers --
+//   Sort players by rating.
+//
+// Inputs:
+//   n - The number of players.
+//   ratings - The rating for each player.
+//   sorted - Output array to fill with player ids in order of rating.
+//
+// Results:
+//   None.
+//
+// Side effects:
+//   Sets sorted to be a list of player ids in decreasing order of rating.
+static void SortPlayers(size_t n, double* ratings, size_t* sorted)
+{
+  size_t temp[n];
+  size_t* src = sorted;
+  size_t* dst = temp;
+
+  for (size_t i = 0; i < n; ++i) {
+    src[i] = i;
+  }
+
+  for (size_t w = 1; w < n; w *= 2) {
+    // Merge subarrays of width w from src to dst.
+    for (size_t i = 0; i < n; i += 2*w) {
+      size_t* a = src + i;
+      size_t* b = a + w;
+      size_t* aend = Min(a + w, src + n);
+      size_t* bend = Min(b + w, src + n);
+      size_t* z = dst + i;
+      while (a < aend || b < bend) {
+        if (b >= bend || (a < aend && ratings[*a] >= ratings[*b])) {
+          *(z++) = *(a++);
+        } else {
+          *(z++) = *(b++);
+        }
+      }
+    }
+    size_t* tmp = src;
+    src = dst;
+    dst = tmp;
+  }
+
+  if (src != sorted) {
+    memcpy(sorted, src, n);
+  }
+}
+
 int main() {
   Data* data = ReadData();
   double ratings[data->n];
@@ -317,10 +372,13 @@ int main() {
   var /= data->n;
   double a = 250.0 / sqrt(var);
 
+  size_t sorted[data->n];
+  SortPlayers(data->n, ratings, sorted);
   for (size_t i = 0; i < data->n; ++i) {
-    double raw = ratings[i];
+    size_t p = sorted[i];
+    double raw = ratings[p];
     double normal = a * raw + 1000.0;
-    printf("%10s %1.4f %.0f\n", data->players[i], raw, normal);
+    printf("%10s %1.4f %.0f\n", data->players[p], raw, normal);
   }
 
   FreeData(data);

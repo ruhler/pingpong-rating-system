@@ -17,7 +17,7 @@ sigma = 1.0
 ratings = []
 for x in range(0, n):
   ratings.append(random.gauss(0.0, sigma))
-  sys.stderr.write("p%i %1.5f\n" % (x, prob(ratings[x], 0.0)))
+  sys.stderr.write("p%i %1.5f\n" % (x, ratings[x]))
 
 # Randomly generate match results for those players
 for x in range(0, m):

@@ -1,6 +1,5 @@
 * Make 'K' a parameter in addition to S2.
-* Output players sorted in order of ranking.
-  - We can make a sorted array of player ids and use that.
+* Make error threshold a parameter too.
 * Move definition of Params and S2 to the top of rate.c.
 * Use consistent naming style for sse_ vs. other functions.
 * Compute total matches played, won, and lost per player as part of Data?
