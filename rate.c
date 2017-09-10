@@ -12,10 +12,14 @@
 //   n - The total number of players.
 //   players - The names of the players by player id.
 //   wins - wins[i][j] is the number of matches player i won against player j.
+//   total_wins - total_wins[i] is the total number of wins by player i.
+//   total_losses - total_losses[i] is the total number of losses by player i.
 typedef struct {
   size_t n;
   char** players;
   size_t** wins;
+  size_t* total_wins;
+  size_t* total_losses;
 } Data;
 
 static size_t PlayerId(char* name, Data* data, size_t* capacity);
@@ -63,6 +67,8 @@ static size_t PlayerId(char* name, Data* data, size_t* capacity)
     for (size_t i = 0; i < data->n; ++i) {
       data->wins[i] = realloc(data->wins[i], *capacity * sizeof(size_t));
     }
+    data->total_wins = realloc(data->total_wins, *capacity * sizeof(size_t));
+    data->total_losses = realloc(data->total_losses, *capacity * sizeof(size_t));
   }
 
   data->players[data->n] = name;
@@ -71,6 +77,8 @@ static size_t PlayerId(char* name, Data* data, size_t* capacity)
     data->wins[i][data->n] = 0;
     data->wins[data->n][i] = 0;
   }
+  data->total_wins[data->n] = 0;
+  data->total_losses[data->n] = 0;
   return data->n++;
 }
 
@@ -99,6 +107,8 @@ static Data* ReadData()
   data->n = 0;
   data->players = NULL;
   data->wins = NULL;
+  data->total_wins = NULL;
+  data->total_losses = NULL;
 
   size_t capacity = 0;
   char* winner;
@@ -108,6 +118,8 @@ static Data* ReadData()
     size_t w = PlayerId(winner, data, &capacity);
     size_t l = PlayerId(loser, data, &capacity);
     data->wins[w][l] += wins;
+    data->total_wins[w] += wins;
+    data->total_losses[l] += wins;
     wins = 1;
   }
   return data;
@@ -132,6 +144,8 @@ static void FreeData(Data* data)
   }
   free(data->players);
   free(data->wins);
+  free(data->total_wins);
+  free(data->total_losses);
   free(data);
 }
 
@@ -255,14 +269,8 @@ static void Rate(Data* data, double ratings[])
   p.g = malloc(data->n * sizeof(double*));
   for (size_t i = 0; i < data->n; ++i) {
     p.g[i] = malloc(data->n * sizeof(double));
-    size_t total = 0;
-    size_t wins = 0;
-    for (size_t j = 0; j < data->n; ++j) {
-      total += data->wins[i][j] + data->wins[j][i];
-      wins += data->wins[i][j];
-    }
-    p.m[i] = (double)total;
-    p.w[i] = (double)wins / p.m[i];
+    p.m[i] = (double)(data->total_wins[i] + data->total_losses[i]);
+    p.w[i] = (double)data->total_wins[i] / p.m[i];
     for (size_t j = 0; j < data->n; ++j) {
       p.g[i][j] = (double)(data->wins[i][j] + data->wins[j][i]) / p.m[i];
     }
@@ -374,11 +382,15 @@ int main() {
 
   size_t sorted[data->n];
   SortPlayers(data->n, ratings, sorted);
+
+  printf("player raw normal matches wins losses\n");
   for (size_t i = 0; i < data->n; ++i) {
     size_t p = sorted[i];
     double raw = ratings[p];
     double normal = a * raw + 1000.0;
-    printf("%10s %1.4f %.0f\n", data->players[p], raw, normal);
+    printf("%10s %1.4f %.0f %zi %zi %zi\n", data->players[p], raw, normal,
+        data->total_wins[p] + data->total_losses[p],
+        data->total_wins[p], data->total_losses[p]);
   }
 
   FreeData(data);
