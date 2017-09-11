@@ -5,7 +5,7 @@
 
 #include <gsl/gsl_multimin.h> // for gsl_*
 
-// Data --
+// MatchHistory --
 //   Information about players and match history.
 //
 // Fields:
@@ -20,16 +20,16 @@ typedef struct {
   size_t** wins;
   size_t* total_wins;
   size_t* total_losses;
-} Data;
+} MatchHistory;
 
-static size_t PlayerId(char* name, Data* data, size_t* capacity);
-static Data* ReadData();
-static void FreeData(Data* data);
+static size_t PlayerId(char* name, MatchHistory* history, size_t* capacity);
+static MatchHistory* ReadMatchHistory();
+static void FreeMatchHistory(MatchHistory* history);
 
 static double sse_f(const gsl_vector* v, void* params);
 static void sse_df(const gsl_vector* v, void* params, gsl_vector* df);
 static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df);
-static void Rate(Data* data, double ratings[]);
+static void Rate(MatchHistory* history, double ratings[]);
 
 
 // PlayerId --
@@ -39,7 +39,7 @@ static void Rate(Data* data, double ratings[]);
 //   name - The name of the player to look up the id for. This name should be
 //          dynamically allocated using malloc. This function takes ownership
 //          of the name, using it or freeing it as appropriate.
-//   data - The existing player data.
+//   history - The existing match history.
 //   capacity - The number of players that space has been allocated for in
 //              data.
 //
@@ -51,39 +51,39 @@ static void Rate(Data* data, double ratings[]);
 //   data. If there is not enough capacity to add the player, the capacity of
 //   the data is expanded first. Takes ownership of the memory for the name,
 //   using it or freeing it as appropriate.
-static size_t PlayerId(char* name, Data* data, size_t* capacity)
+static size_t PlayerId(char* name, MatchHistory* history, size_t* capacity)
 {
-  for (size_t i = 0; i < data->n; ++i) {
-    if (strcmp(name, data->players[i]) == 0) {
+  for (size_t i = 0; i < history->n; ++i) {
+    if (strcmp(name, history->players[i]) == 0) {
       free(name);
       return i;
     }
   }
 
-  if (*capacity == data->n) {
+  if (*capacity == history->n) {
     *capacity = (*capacity == 0) ? 1 : 2 * (*capacity);
-    data->players = realloc(data->players, *capacity * sizeof(char*));
-    data->wins = realloc(data->wins, *capacity * sizeof(size_t*));
-    for (size_t i = 0; i < data->n; ++i) {
-      data->wins[i] = realloc(data->wins[i], *capacity * sizeof(size_t));
+    history->players = realloc(history->players, *capacity * sizeof(char*));
+    history->wins = realloc(history->wins, *capacity * sizeof(size_t*));
+    for (size_t i = 0; i < history->n; ++i) {
+      history->wins[i] = realloc(history->wins[i], *capacity * sizeof(size_t));
     }
-    data->total_wins = realloc(data->total_wins, *capacity * sizeof(size_t));
-    data->total_losses = realloc(data->total_losses, *capacity * sizeof(size_t));
+    history->total_wins = realloc(history->total_wins, *capacity * sizeof(size_t));
+    history->total_losses = realloc(history->total_losses, *capacity * sizeof(size_t));
   }
 
-  data->players[data->n] = name;
-  data->wins[data->n] = malloc(*capacity * sizeof(size_t));
-  for (size_t i = 0; i < data->n; ++i) {
-    data->wins[i][data->n] = 0;
-    data->wins[data->n][i] = 0;
+  history->players[history->n] = name;
+  history->wins[history->n] = malloc(*capacity * sizeof(size_t));
+  for (size_t i = 0; i < history->n; ++i) {
+    history->wins[i][history->n] = 0;
+    history->wins[history->n][i] = 0;
   }
-  data->total_wins[data->n] = 0;
-  data->total_losses[data->n] = 0;
-  return data->n++;
+  history->total_wins[history->n] = 0;
+  history->total_losses[history->n] = 0;
+  return history->n++;
 }
 
-// ReadData --
-//   Read player data from stdin.
+// ReadMatchHistory --
+//   Read match history from stdin.
 //
 // Input:
 //   Each line of input data is in the form "winner loser [n]", where
@@ -98,55 +98,56 @@ static size_t PlayerId(char* name, Data* data, size_t* capacity)
 //   The parsed match data, or null if there was an error parsing the data.
 //
 // Side effects:
-//   Reads input from stdin and allocates a Data structure using malloc. The
-//   caller is responsible for calling FreeData on the returned data to
-//   reclaim the memory for the data once it is no longer needed.
-static Data* ReadData()
+//   Reads input from stdin and allocates a MatchHistory structure using
+//   malloc. The caller is responsible for calling FreeMatchHistory on the
+//   returned data to reclaim the memory for the data once it is no longer
+//   needed.
+static MatchHistory* ReadMatchHistory()
 {
-  Data* data = malloc(sizeof(Data));
-  data->n = 0;
-  data->players = NULL;
-  data->wins = NULL;
-  data->total_wins = NULL;
-  data->total_losses = NULL;
+  MatchHistory* history = malloc(sizeof(MatchHistory));
+  history->n = 0;
+  history->players = NULL;
+  history->wins = NULL;
+  history->total_wins = NULL;
+  history->total_losses = NULL;
 
   size_t capacity = 0;
   char* winner;
   char* loser;
   size_t wins = 1;
   while (scanf(" %ms %ms %zd", &winner, &loser, &wins) >= 2) {
-    size_t w = PlayerId(winner, data, &capacity);
-    size_t l = PlayerId(loser, data, &capacity);
-    data->wins[w][l] += wins;
-    data->total_wins[w] += wins;
-    data->total_losses[l] += wins;
+    size_t w = PlayerId(winner, history, &capacity);
+    size_t l = PlayerId(loser, history, &capacity);
+    history->wins[w][l] += wins;
+    history->total_wins[w] += wins;
+    history->total_losses[l] += wins;
     wins = 1;
   }
-  return data;
+  return history;
 }
 
-// FreeData --
-//   Free memory used by the given data.
+// FreeMatchHistory --
+//   Free memory used by the given match history.
 //
 // Inputs:
-//   data - the data to free.
+//   history - the match history to free.
 //
 // Results:
 //   none.
 //
 // Side effects:
-//   Memory used by the given data is freed. Future accesses to the data
-//   are undefined.
-static void FreeData(Data* data)
+//   Memory used by the given match history is freed. Future accesses to the
+//   match history are undefined.
+static void FreeMatchHistory(MatchHistory* history)
 {
-  for (size_t i = 0; i < data->n; ++i) {
-    free(data->wins[i]);
+  for (size_t i = 0; i < history->n; ++i) {
+    free(history->wins[i]);
   }
-  free(data->players);
-  free(data->wins);
-  free(data->total_wins);
-  free(data->total_losses);
-  free(data);
+  free(history->players);
+  free(history->wins);
+  free(history->total_wins);
+  free(history->total_losses);
+  free(history);
 }
 
 // We assume the following:
@@ -251,7 +252,7 @@ static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
 //   Rate players.
 // 
 // Inputs:
-//   data - The player data.
+//   history - The match history.
 //   rating - Output array of data->n ratings corresponding to player ratings.
 //
 // Results:
@@ -259,34 +260,34 @@ static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
 //
 // Side effects:
 //   Sets rating[i] to the rating of the ith player.
-static void Rate(Data* data, double ratings[])
+static void Rate(MatchHistory* history, double ratings[])
 {
   // Compute the parameters.
   Params p;
-  p.n = data->n;
-  p.m = malloc(data->n * sizeof(double));
-  p.w = malloc(data->n * sizeof(double));
-  p.g = malloc(data->n * sizeof(double*));
-  for (size_t i = 0; i < data->n; ++i) {
-    p.g[i] = malloc(data->n * sizeof(double));
-    p.m[i] = (double)(data->total_wins[i] + data->total_losses[i]);
-    p.w[i] = (double)data->total_wins[i] / p.m[i];
-    for (size_t j = 0; j < data->n; ++j) {
-      p.g[i][j] = (double)(data->wins[i][j] + data->wins[j][i]) / p.m[i];
+  p.n = history->n;
+  p.m = malloc(history->n * sizeof(double));
+  p.w = malloc(history->n * sizeof(double));
+  p.g = malloc(history->n * sizeof(double*));
+  for (size_t i = 0; i < history->n; ++i) {
+    p.g[i] = malloc(history->n * sizeof(double));
+    p.m[i] = (double)(history->total_wins[i] + history->total_losses[i]);
+    p.w[i] = (double)history->total_wins[i] / p.m[i];
+    for (size_t j = 0; j < history->n; ++j) {
+      p.g[i][j] = (double)(history->wins[i][j] + history->wins[j][i]) / p.m[i];
     }
   }
 
   // Compute the ratings.
   gsl_multimin_function_fdf sse;
-  sse.n = data->n;
+  sse.n = history->n;
   sse.f = &sse_f;
   sse.df = &sse_df;
   sse.fdf = &sse_fdf;
   sse.params = (void*)&p;
 
-  gsl_vector* x = gsl_vector_calloc(data->n);
+  gsl_vector* x = gsl_vector_calloc(history->n);
   const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_conjugate_fr;
-  gsl_multimin_fdfminimizer* s = gsl_multimin_fdfminimizer_alloc(T, data->n);
+  gsl_multimin_fdfminimizer* s = gsl_multimin_fdfminimizer_alloc(T, history->n);
   gsl_multimin_fdfminimizer_set(s, &sse, x, 0.01, 1e-5);
 
   int status = GSL_CONTINUE;
@@ -302,7 +303,7 @@ static void Rate(Data* data, double ratings[])
     abort();
   }
 
-  for (int i = 0; i < data->n; i++) {
+  for (int i = 0; i < history->n; i++) {
     ratings[i] = gsl_vector_get(s->x, i);
     free(p.g[i]);
   }
@@ -369,30 +370,30 @@ static void SortPlayers(size_t n, double* ratings, size_t* sorted)
 }
 
 int main() {
-  Data* data = ReadData();
-  double ratings[data->n];
-  Rate(data, ratings);
+  MatchHistory* history = ReadMatchHistory();
+  double ratings[history->n];
+  Rate(history, ratings);
 
   double var = 0;
-  for (size_t i = 0; i < data->n; ++i) {
+  for (size_t i = 0; i < history->n; ++i) {
     var += ratings[i] * ratings[i];
   }
-  var /= data->n;
+  var /= history->n;
   double a = 250.0 / sqrt(var);
 
-  size_t sorted[data->n];
-  SortPlayers(data->n, ratings, sorted);
+  size_t sorted[history->n];
+  SortPlayers(history->n, ratings, sorted);
 
   printf("player raw normal matches wins losses\n");
-  for (size_t i = 0; i < data->n; ++i) {
+  for (size_t i = 0; i < history->n; ++i) {
     size_t p = sorted[i];
     double raw = ratings[p];
     double normal = a * raw + 1000.0;
-    printf("%10s %1.4f %.0f %zi %zi %zi\n", data->players[p], raw, normal,
-        data->total_wins[p] + data->total_losses[p],
-        data->total_wins[p], data->total_losses[p]);
+    printf("%10s %1.4f %.0f %zi %zi %zi\n", history->players[p], raw, normal,
+        history->total_wins[p] + history->total_losses[p],
+        history->total_wins[p], history->total_losses[p]);
   }
 
-  FreeData(data);
+  FreeMatchHistory(history);
   return 0;
 }
