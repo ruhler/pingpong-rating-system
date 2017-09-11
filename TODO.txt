@@ -1,7 +1,5 @@
 * Combine Data and Params into a single structure?
 * Make 'K' a parameter in addition to S2.
-* Make error threshold a parameter too.
-* Move definition of Params and S2 to the top of rate.c.
-* Use consistent naming style for sse_ vs. other functions.
+* Make error threshold a parameter too?
 * Use same notation (variable names) in program as in document, as best as
   possible.

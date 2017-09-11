@@ -22,14 +22,61 @@ typedef struct {
   size_t* total_losses;
 } MatchHistory;
 
+// We assume the following:
+//  - The probability a player with rating x beats a player with rating y is 
+//    f(x, y) = 1 / (1 + exp(y - x)).
+//  Note that the player ratings can be translated without affecting the
+//  probabilities.
+//
+//  - Player ratings are normally distributed with some variance SIGMA_SQUARED and mean
+//  0. It is fine to take the mean to be 0 because translating the ratings
+//  does not affect the probabilities.
+//    g(x) = exp(-x^2/(2*SIGMA_SQUARED))/sqrt(2*pi*SIGMA_SQUARED)
+//  The parameter SIGMA_SQUARED is unknown, but will turn out not to matter less and less
+//  as players play more games against each other.
+//
+// The ratings are determined by maximizing the probability of seeing the
+// match results we saw. That is, maximizing:
+//    (Product of g(x_i) for all players i)
+//  * (Product of f(x_i, x_j) for all matches where player i beat player j)
+//
+// This turns out to be equivalent to minimizing the sum of the squares of
+// error E(x_i) for each player i, where
+//   E(x_i) = w_i - (x/(m_i*SIGMA_SQUARED) + sum(g(i,j) * f(x_i, x_j)))
+// Here 'm_i' is the total number of matches player i has played.
+//      'w_i' is the fraction out of m_i of matches player i has won.
+//      'g(i,j)' is the fraction out of m_i of matches player i has played
+//               against player j.
+// In other words, the error is the difference in the observed win percentage
+// and the expected win percentage. The expected win percentage is the average
+// of wins against other players, weighted by number of matches played against
+// each other player. And there is an additional adjustment of x/(m_i *
+// SIGMA_SQUARED),
+// which goes to zero as the player players more matches, representing the
+// matches the player won by fluke, as it were.
+
+#define SIGMA_SQUARED 1.0
+
+// SSEParams
+//   Parameters of the sum of squared error (SSE) function.
+typedef struct {
+  size_t n;     // the total number of players.
+  double* m;    // m_i for each player i.
+  double* w;    // w_i for each player i.
+  double** g;   // g(i, j) for all pairs of players (i, j).
+} SSEParams;
+
 static size_t PlayerId(char* name, MatchHistory* history, size_t* capacity);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
-static double sse_f(const gsl_vector* v, void* params);
-static void sse_df(const gsl_vector* v, void* params, gsl_vector* df);
-static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df);
+static double SSE_f(const gsl_vector* v, void* params);
+static void SSE_df(const gsl_vector* v, void* params, gsl_vector* df);
+static void SSE_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df);
 static void Rate(MatchHistory* history, double ratings[]);
+
+static size_t* Min(size_t* a, size_t* b);
+static void SortPlayers(size_t n, double* ratings, size_t* sorted);
 
 
 // PlayerId --
@@ -150,55 +197,14 @@ static void FreeMatchHistory(MatchHistory* history)
   free(history);
 }
 
-// We assume the following:
-//  - The probability a player with rating x beats a player with rating y is 
-//    pwin(x, y) = 1 / (1 + exp(y - x)).
-//  Note that the player ratings can be translated without affecting the
-//  probabilities.
-//
-//  - Player ratings are normally distributed with some variance S2 and mean
-//  0. It is fine to take the mean to be 0 because translating the ratings
-//  does not affect the probabilities.
-//    prate(x) = exp(-x^2/(2*S2))/sqrt(2*pi*S2)
-//  The parameter S2 is unknown, but will turn out not to matter less and less
-//  as players play more games against each other.
-//
-// The ratings are determined by maximizing the probability of seeing the
-// match results we saw. That is, maximizing:
-//    (Product of prate(x_i) for all players i)
-//  * (Product of pwin(x_i, x_j) for all matches where player i beat player j)
-//
-// This turns out to be equivalent to minimizing the sum of the squares of
-// error E(x_i) for each player i, where
-//   E(x_i) = w_i - (x/(m_i*S2) + sum(g(i,j) * pwin(x_i, x_j)))
-// Here 'm_i' is the total number of matches player i has played.
-//      'w_i' is the fraction out of m_i of matches player i has won.
-//      'g(i,j)' is the fraction out of m_i of matches player i has played
-//               against player j.
-// In other words, the error is the difference in the observed win percentage
-// and the expected win percentage. The expected win percentage is the average
-// of wins against other players, weighted by number of matches played against
-// each other player. And there is an additional adjustment of x/(m_i * S2),
-// which goes to zero as the player players more matches, representing the
-// matches the player won by fluke, as it were.
-
-#define S2 1.0
-
-typedef struct {
-  size_t n;     // the total number of players.
-  double* m;    // m_i for each player i.
-  double* w;    // w_i for each player i.
-  double** g;   // g(i, j) for all pairs of players (i, j).
-} Params;
-
-// sse_f - the sum of the squared error.
-static double sse_f(const gsl_vector* v, void* params) {
-    Params* data = (Params*)params;
+// SSE_f - The sum of the squared error (SSE) function to minimize.
+static double SSE_f(const gsl_vector* v, void* params) {
+    SSEParams* data = (SSEParams*)params;
     double f = 0;
     for (size_t i = 0; i < data->n; i++) {
       double x_i = gsl_vector_get(v, i);
       double w = data->w[i];
-      double u = x_i / (data->m[i] * S2);
+      double u = x_i / (data->m[i] * SIGMA_SQUARED);
       for (size_t j = 0; j < data->n; j++) {
         double x_j = gsl_vector_get(v, j);
         u += data->g[i][j] / (1.0 + exp(x_j - x_i));
@@ -207,15 +213,15 @@ static double sse_f(const gsl_vector* v, void* params) {
     }
     return f;
 }
-
-// sse_df - the gradiant of the sum of the squared error.
-static void sse_df(const gsl_vector* v, void* params, gsl_vector* df) {
-  Params* data = (Params*)params;
+
+// SSE_df - The gradiant of the sum of the squared error (SSE).
+static void SSE_df(const gsl_vector* v, void* params, gsl_vector* df) {
+  SSEParams* data = (SSEParams*)params;
   for (size_t i = 0; i < data->n; i++) {
     double x_i = gsl_vector_get(v, i);
     double w = data->w[i];
-    double u = x_i / (data->m[i] * S2);
-    double du = 1.0 / (data->m[i] * S2);
+    double u = x_i / (data->m[i] * SIGMA_SQUARED);
+    double du = 1.0 / (data->m[i] * SIGMA_SQUARED);
     for (size_t j = 0; j < data->n; j++) {
       double x_j = gsl_vector_get(v, j);
       double k = exp(x_j - x_i);
@@ -226,16 +232,16 @@ static void sse_df(const gsl_vector* v, void* params, gsl_vector* df) {
     *(gsl_vector_ptr(df, i)) = -2.0 * (w - u) * du;
   }
 }
-
-// sse_fdf - both sse_f and sse_df together
-static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df) {
-  Params* data = (Params*)params;
+
+// SSE_fdf - both SSE_f and SSE_df together
+static void SSE_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df) {
+  SSEParams* data = (SSEParams*)params;
   *f = 0;
   for (size_t i = 0; i < data->n; i++) {
     double x_i = gsl_vector_get(v, i);
     double w = data->w[i];
-    double u = x_i / (data->m[i] * S2);
-    double du = 1.0 / (data->m[i] * S2);
+    double u = x_i / (data->m[i] * SIGMA_SQUARED);
+    double du = 1.0 / (data->m[i] * SIGMA_SQUARED);
     for (size_t j = 0; j < data->n; j++) {
       double x_j = gsl_vector_get(v, j);
       double k = exp(x_j - x_i);
@@ -247,7 +253,7 @@ static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
     *(gsl_vector_ptr(df, i)) = -2.0 * (w - u) * du;
   }
 }
-
+
 // Rate --
 //   Rate players.
 // 
@@ -263,7 +269,7 @@ static void sse_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
 static void Rate(MatchHistory* history, double ratings[])
 {
   // Compute the parameters.
-  Params p;
+  SSEParams p;
   p.n = history->n;
   p.m = malloc(history->n * sizeof(double));
   p.w = malloc(history->n * sizeof(double));
@@ -280,9 +286,9 @@ static void Rate(MatchHistory* history, double ratings[])
   // Compute the ratings.
   gsl_multimin_function_fdf sse;
   sse.n = history->n;
-  sse.f = &sse_f;
-  sse.df = &sse_df;
-  sse.fdf = &sse_fdf;
+  sse.f = &SSE_f;
+  sse.df = &SSE_df;
+  sse.fdf = &SSE_fdf;
   sse.params = (void*)&p;
 
   gsl_vector* x = gsl_vector_calloc(history->n);
@@ -314,12 +320,12 @@ static void Rate(MatchHistory* history, double ratings[])
   gsl_multimin_fdfminimizer_free(s);
   gsl_vector_free(x);
 }
-
+
 static size_t* Min(size_t* a, size_t* b)
 {
   return a < b ? a : b;
 }
-
+
 // SortPlayers --
 //   Sort players by rating.
 //
@@ -368,7 +374,19 @@ static void SortPlayers(size_t n, double* ratings, size_t* sorted)
     memcpy(sorted, src, n);
   }
 }
-
+
+// main --
+//   Main entry point. Reads match history from stdin, computes rating
+//   results, sorts players by rating, and outputs the rating results.
+//
+// Inputs:
+//   None.
+//
+// Returns:
+//   zero on success, non-zero on error.
+//
+// Side effects:
+//   Reads match data from stdin and outputs rating results to stdout.
 int main() {
   MatchHistory* history = ReadMatchHistory();
   double ratings[history->n];
