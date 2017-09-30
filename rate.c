@@ -292,24 +292,27 @@ static void Rate(MatchHistory* history, double ratings[])
   sse.params = (void*)&p;
 
   gsl_vector* x = gsl_vector_calloc(history->n);
-  const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_conjugate_fr;
+  // const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_conjugate_fr;
+  const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_steepest_descent;
   gsl_multimin_fdfminimizer* s = gsl_multimin_fdfminimizer_alloc(T, history->n);
-  gsl_multimin_fdfminimizer_set(s, &sse, x, 0.01, 1e-5);
+  gsl_multimin_fdfminimizer_set(s, &sse, x, 0.1, 1e-5);
 
   int status = GSL_CONTINUE;
-  for (int i = 0; status == GSL_CONTINUE && i < 10000; i++) {
+  int i;
+  for (i = 0; status == GSL_CONTINUE && i < 10000; i++) {
     if (gsl_multimin_fdfminimizer_iterate(s)) {
       break;
     }
-    status = gsl_multimin_test_gradient(s->gradient, 1e-5);
+    status = gsl_multimin_test_gradient(s->gradient, 1e-3);
   }
 
   if (status != GSL_SUCCESS) {
-    fprintf(stderr, "Rate failed to find minimum\n");
+    fprintf(stderr, "Rate failed to find minimum after %i iterations: %s\n",
+        i, gsl_strerror(status));
     abort();
   }
 
-  for (int i = 0; i < history->n; i++) {
+  for (i = 0; i < history->n; i++) {
     ratings[i] = gsl_vector_get(s->x, i);
     free(p.g[i]);
   }
