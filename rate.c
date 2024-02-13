@@ -22,7 +22,7 @@ typedef struct {
 } MatchHistory;
 
 // We assume the following:
-//  - The probability a player with rating x beats a player with rating y is 
+//  - The probability a player with rating x beats a player with rating y is
 //    f(x, y) = 1 / (1 + exp(y - x)).
 //  Note that the player ratings can be translated without affecting the
 //  probabilities.
@@ -69,9 +69,7 @@ static size_t PlayerId(char* name, MatchHistory* history, size_t* capacity);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
-static double SSE_f(double* v, SSEParams* data);
-static void SSE_df(double* v, SSEParams* data, double* df);
-static double SSE_fdf(double* v, SSEParams* data, double* df);
+static void ComputeGradients(double* v, SSEParams* data, double* df);
 
 static void Rate(MatchHistory* history, double ratings[]);
 
@@ -197,24 +195,8 @@ static void FreeMatchHistory(MatchHistory* history)
   free(history);
 }
 
-// SSE_f - The sum of the squared error (SSE) function to minimize.
-static double SSE_f(double* v, SSEParams* data) {
-    double f = 0;
-    for (size_t i = 0; i < data->n; i++) {
-      double x_i = v[i];
-      double w = data->w[i];
-      double u = x_i / (data->m[i] * SIGMA_SQUARED);
-      for (size_t j = 0; j < data->n; j++) {
-        double x_j = v[j];
-        u += data->g[i][j] / (1.0 + exp(x_j - x_i));
-      }
-      f += (w - u) * (w - u);
-    }
-    return f;
-}
-
-// SSE_df - The gradiant of the sum of the squared error (SSE).
-static void SSE_df(double* v, SSEParams* data, double* df) {
+// ComputeGradients - The gradiant of the sum of the squared error (SSE).
+static void ComputeGradients(double* v, SSEParams* data, double* df) {
   for (size_t i = 0; i < data->n; i++) {
     double x_i = v[i];
     double w = data->w[i];
@@ -229,32 +211,11 @@ static void SSE_df(double* v, SSEParams* data, double* df) {
     }
     df[i] = -2.0 * (w - u) * du;
   }
-}
-
-// SSE_fdf - both SSE_f and SSE_df together
-static double SSE_fdf(double* v, SSEParams* data, double* df) {
-  double f = 0;
-  for (size_t i = 0; i < data->n; i++) {
-    double x_i = v[i];
-    double w = data->w[i];
-    double u = x_i / (data->m[i] * SIGMA_SQUARED);
-    double du = 1.0 / (data->m[i] * SIGMA_SQUARED);
-    for (size_t j = 0; j < data->n; j++) {
-      double x_j = v[j];
-      double k = exp(x_j - x_i);
-      double kp1 = 1.0 + k;
-      u += data->g[i][j] / kp1;
-      du += data->g[i][j] * k / (kp1 * kp1);
-    }
-    f += (w - u) * (w - u);
-    df[i] = -2.0 * (w - u) * du;
-  }
-  return f;
 }
 
 // Rate --
 //   Rate players.
-// 
+//
 // Inputs:
 //   history - The match history.
 //   rating - Output array of data->n ratings corresponding to player ratings.
@@ -266,9 +227,6 @@ static double SSE_fdf(double* v, SSEParams* data, double* df) {
 //   Sets rating[i] to the rating of the ith player.
 static void Rate(MatchHistory* history, double ratings[])
 {
-  (void)&SSE_f;
-  (void)&SSE_df;
-
   // Compute the parameters.
   SSEParams p;
   p.n = history->n;
@@ -292,16 +250,22 @@ static void Rate(MatchHistory* history, double ratings[])
   double max_gradient = 1.0;
   double gradients[history->n];
 
+  size_t progress = 0;
   while (max_gradient > 0.001) {
-    double e = SSE_fdf(ratings, &p, gradients);
+    ComputeGradients(ratings, &p, gradients);
 
     max_gradient = 0.0;
     for (size_t i = 0; i < history->n; ++i) {
       max_gradient = fmax(max_gradient, gradients[i]);
       ratings[i] -= 0.001 * gradients[i];
     }
-    printf("\re = %f, %f > 0.001", e, max_gradient);
-    fflush(stdout);
+
+    size_t nprogress = (size_t)(100 * 0.001 / max_gradient);
+    if (nprogress > progress) {
+      progress = nprogress;
+      printf("\r%zi%% done", progress);
+      fflush(stdout);
+    }
   }
   printf("\n");
 
