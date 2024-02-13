@@ -1,9 +1,8 @@
 
+#include <math.h>
 #include <stdio.h>    // for scanf, printf
 #include <stdlib.h>   // for malloc, free
 #include <string.h>   // for strcmp
-
-#include <gsl/gsl_multimin.h> // for gsl_*
 
 // MatchHistory --
 //   Information about players and match history.
@@ -70,9 +69,10 @@ static size_t PlayerId(char* name, MatchHistory* history, size_t* capacity);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
-static double SSE_f(const gsl_vector* v, void* params);
-static void SSE_df(const gsl_vector* v, void* params, gsl_vector* df);
-static void SSE_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df);
+static double SSE_f(double* v, SSEParams* data);
+static void SSE_df(double* v, SSEParams* data, double* df);
+static double SSE_fdf(double* v, SSEParams* data, double* df);
+
 static void Rate(MatchHistory* history, double ratings[]);
 
 static size_t* Min(size_t* a, size_t* b);
@@ -198,15 +198,14 @@ static void FreeMatchHistory(MatchHistory* history)
 }
 
 // SSE_f - The sum of the squared error (SSE) function to minimize.
-static double SSE_f(const gsl_vector* v, void* params) {
-    SSEParams* data = (SSEParams*)params;
+static double SSE_f(double* v, SSEParams* data) {
     double f = 0;
     for (size_t i = 0; i < data->n; i++) {
-      double x_i = gsl_vector_get(v, i);
+      double x_i = v[i];
       double w = data->w[i];
       double u = x_i / (data->m[i] * SIGMA_SQUARED);
       for (size_t j = 0; j < data->n; j++) {
-        double x_j = gsl_vector_get(v, j);
+        double x_j = v[j];
         u += data->g[i][j] / (1.0 + exp(x_j - x_i));
       }
       f += (w - u) * (w - u);
@@ -215,43 +214,42 @@ static double SSE_f(const gsl_vector* v, void* params) {
 }
 
 // SSE_df - The gradiant of the sum of the squared error (SSE).
-static void SSE_df(const gsl_vector* v, void* params, gsl_vector* df) {
-  SSEParams* data = (SSEParams*)params;
+static void SSE_df(double* v, SSEParams* data, double* df) {
   for (size_t i = 0; i < data->n; i++) {
-    double x_i = gsl_vector_get(v, i);
+    double x_i = v[i];
     double w = data->w[i];
     double u = x_i / (data->m[i] * SIGMA_SQUARED);
     double du = 1.0 / (data->m[i] * SIGMA_SQUARED);
     for (size_t j = 0; j < data->n; j++) {
-      double x_j = gsl_vector_get(v, j);
+      double x_j = v[j];
       double k = exp(x_j - x_i);
       double kp1 = 1.0 + k;
       u += data->g[i][j] / kp1;
       du += data->g[i][j] * k / (kp1 * kp1);
     }
-    *(gsl_vector_ptr(df, i)) = -2.0 * (w - u) * du;
+    df[i] = -2.0 * (w - u) * du;
   }
 }
 
 // SSE_fdf - both SSE_f and SSE_df together
-static void SSE_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df) {
-  SSEParams* data = (SSEParams*)params;
-  *f = 0;
+static double SSE_fdf(double* v, SSEParams* data, double* df) {
+  double f = 0;
   for (size_t i = 0; i < data->n; i++) {
-    double x_i = gsl_vector_get(v, i);
+    double x_i = v[i];
     double w = data->w[i];
     double u = x_i / (data->m[i] * SIGMA_SQUARED);
     double du = 1.0 / (data->m[i] * SIGMA_SQUARED);
     for (size_t j = 0; j < data->n; j++) {
-      double x_j = gsl_vector_get(v, j);
+      double x_j = v[j];
       double k = exp(x_j - x_i);
       double kp1 = 1.0 + k;
       u += data->g[i][j] / kp1;
       du += data->g[i][j] * k / (kp1 * kp1);
     }
-    *f += (w - u) * (w - u);
-    *(gsl_vector_ptr(df, i)) = -2.0 * (w - u) * du;
+    f += (w - u) * (w - u);
+    df[i] = -2.0 * (w - u) * du;
   }
+  return f;
 }
 
 // Rate --
@@ -268,6 +266,9 @@ static void SSE_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df
 //   Sets rating[i] to the rating of the ith player.
 static void Rate(MatchHistory* history, double ratings[])
 {
+  (void)&SSE_f;
+  (void)&SSE_df;
+
   // Compute the parameters.
   SSEParams p;
   p.n = history->n;
@@ -283,45 +284,33 @@ static void Rate(MatchHistory* history, double ratings[])
     }
   }
 
-  // Compute the ratings.
-  gsl_multimin_function_fdf sse;
-  sse.n = history->n;
-  sse.f = &SSE_f;
-  sse.df = &SSE_df;
-  sse.fdf = &SSE_fdf;
-  sse.params = (void*)&p;
+  // Initialize the ratings.
+  for (size_t i = 0; i < history->n; ++i) {
+    ratings[i] = 0.0;
+  }
 
-  gsl_vector* x = gsl_vector_calloc(history->n);
-  // const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_conjugate_fr;
-  const gsl_multimin_fdfminimizer_type* T = gsl_multimin_fdfminimizer_steepest_descent;
-  gsl_multimin_fdfminimizer* s = gsl_multimin_fdfminimizer_alloc(T, history->n);
-  gsl_multimin_fdfminimizer_set(s, &sse, x, 0.1, 1e-5);
+  double max_gradient = 1.0;
+  double gradients[history->n];
 
-  int status = GSL_CONTINUE;
-  int i;
-  for (i = 0; status == GSL_CONTINUE && i < 10000; i++) {
-    if (gsl_multimin_fdfminimizer_iterate(s)) {
-      break;
+  while (max_gradient > 0.001) {
+    double e = SSE_fdf(ratings, &p, gradients);
+
+    max_gradient = 0.0;
+    for (size_t i = 0; i < history->n; ++i) {
+      max_gradient = fmax(max_gradient, gradients[i]);
+      ratings[i] -= 0.001 * gradients[i];
     }
-    status = gsl_multimin_test_gradient(s->gradient, 1e-3);
+    printf("\re = %f, %f > 0.001", e, max_gradient);
+    fflush(stdout);
   }
+  printf("\n");
 
-  if (status != GSL_SUCCESS) {
-    fprintf(stderr, "Rate failed to find minimum after %i iterations: %s\n",
-        i, gsl_strerror(status));
-    abort();
-  }
-
-  for (i = 0; i < history->n; i++) {
-    ratings[i] = gsl_vector_get(s->x, i);
+  for (size_t i = 0; i < history->n; i++) {
     free(p.g[i]);
   }
   free(p.g);
   free(p.w);
   free(p.m);
-
-  gsl_multimin_fdfminimizer_free(s);
-  gsl_vector_free(x);
 }
 
 static size_t* Min(size_t* a, size_t* b)
