@@ -9,6 +9,4 @@
     texlive-latex-base (for pdflatex)
     texlive-pictures (for pgfplots.sty)
 
-* Add a LICENSE file
-
 * Clean up the makefile.
