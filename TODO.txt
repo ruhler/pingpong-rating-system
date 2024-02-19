@@ -6,9 +6,7 @@
 
 * add -pedantic flag to gcc invocation.
 
-* Add a readme file
-  - install requirements
-    texlive-latex-base (for pdflatex)
-    texlive-pictures (for pgfplots.sty)
+* Add a man page and/or help usage text for pingpong-rating-system program.
+* Add a test suite?
 
 * Clean up the makefile.
