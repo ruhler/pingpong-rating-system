@@ -3,3 +3,12 @@
 * Make error threshold a parameter too?
 * Use same notation (variable names) in program as in document, as best as
   possible.
+
+* Add a readme file
+  - install requirements
+    texlive-latex-base (for pdflatex)
+    texlive-pictures (for pgfplots.sty)
+
+* Add a LICENSE file
+
+* Clean up the makefile.
