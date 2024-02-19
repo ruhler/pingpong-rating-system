@@ -1,6 +1,6 @@
-# PingPong Rating System README
+# Ping Pong Rating System README
 
-A ping pong rating system for a rating players in a local league. Includes a
+A ping pong rating system for rating players in a local league. Includes a
 specification and implementation of the rating system.
 
 ## Source
@@ -26,7 +26,7 @@ This generates two items:
 
 ## Run
 
-The pingpong rating system takes a file as input listing match results. Each
+The ping pong rating system takes a file as input listing match results. Each
 line lists a match winner, followed by a match loser, followed by an optional
 number of matches played. See `matches.txt` for example.
 
