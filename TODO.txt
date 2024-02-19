@@ -4,6 +4,8 @@
 * Use same notation (variable names) in program as in document, as best as
   possible.
 
+* add -pedantic flag to gcc invocation.
+
 * Add a readme file
   - install requirements
     texlive-latex-base (for pdflatex)

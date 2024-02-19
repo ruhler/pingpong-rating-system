@@ -1,5 +1,5 @@
 
-#include <math.h>
+#include <math.h>     // for exp, sqrt
 #include <stdio.h>    // for scanf, printf
 #include <stdlib.h>   // for malloc, free
 #include <string.h>   // for strcmp
@@ -343,7 +343,8 @@ static void SortPlayers(size_t n, double* ratings, size_t* sorted)
 //
 // Side effects:
 //   Reads match data from stdin and outputs rating results to stdout.
-int main() {
+int main()
+{
   MatchHistory* history = ReadMatchHistory();
   double ratings[history->n];
   Rate(history, ratings);
