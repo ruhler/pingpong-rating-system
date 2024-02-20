@@ -168,7 +168,7 @@ static MatchHistory* ReadMatchHistory()
   char* winner;
   char* loser;
   size_t wins = 1;
-  while (scanf(" %ms %ms %zd", &winner, &loser, &wins) >= 2) {
+  while (scanf(" %ms %ms %zu", &winner, &loser, &wins) >= 2) {
     size_t w = PlayerId(winner, history, &capacity);
     size_t l = PlayerId(loser, history, &capacity);
     history->wins[w][l] += wins;
