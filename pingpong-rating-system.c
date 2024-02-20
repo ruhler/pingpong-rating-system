@@ -64,20 +64,20 @@ typedef struct {
 // leading to about 1 post-normalized rating point.
 #define D (1.0 / (NORMAL_STDDEV * 4.0))
 
-// SSEParams
-//   Parameters of the sum of squared error (SSE) function.
+// Params
+//   Parameters of the sum of squared error function.
 typedef struct {
   size_t n;     // the total number of players.
   double* m;    // m_i for each player i.
   double* w;    // w_i for each player i.
   double** g;   // g(i, j) for all pairs of players (i, j).
-} SSEParams;
+} Params;
 
 static size_t PlayerId(char* name, MatchHistory* history, size_t* capacity);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
-static void ComputeGradients(double* v, SSEParams* data, double* df);
+static void ComputeGradients(double* v, Params* data, double* df);
 
 static void Rate(MatchHistory* history, double ratings[]);
 
@@ -204,7 +204,7 @@ static void FreeMatchHistory(MatchHistory* history)
 }
 
 // ComputeGradients - The gradiant of the sum of the squared error (SSE).
-static void ComputeGradients(double* v, SSEParams* data, double* df) {
+static void ComputeGradients(double* v, Params* data, double* df) {
   for (size_t i = 0; i < data->n; i++) {
     double x_i = v[i];
     double w = data->w[i];
@@ -236,7 +236,7 @@ static void ComputeGradients(double* v, SSEParams* data, double* df) {
 static void Rate(MatchHistory* history, double ratings[])
 {
   // Compute the parameters.
-  SSEParams p;
+  Params p;
   p.n = history->n;
   p.m = malloc(history->n * sizeof(double));
   p.w = malloc(history->n * sizeof(double));

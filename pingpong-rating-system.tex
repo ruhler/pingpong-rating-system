@@ -331,9 +331,8 @@ the sum of the squared differences for every player:
   + &(w_2 - (\frac{x_2}{M_2 \kappa \sigma^2} + \sum_{j \in P} m_{2, j} f(x_2, x_j)))^2 + \ldots
 \end{align*}
 
-For example, this expression can be efficiently minimized using the
-Fletcher-Reeves conjugate gradient algorithm as implemented in the GNU
-Scientific Library's gsl\_multimin\_fdfminimizer\_conjugate\_fr.
+For example, this expression can be minimized by simple gradient descent
+algorithm.
 
 Notice that as the number of matches each player has played goes up, the
 parameters $\kappa$ and $\sigma^2$ make less and less of a difference in the
