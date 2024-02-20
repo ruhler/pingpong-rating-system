@@ -54,7 +54,15 @@ typedef struct {
 // which goes to zero as the player players more matches, representing the
 // matches the player won by fluke, as it were.
 
-#define SIGMA_SQUARED 1.0
+#define SIGMA_SQUARED 1.0f
+
+// The target mean and standard deviation of ratings after normalization.
+#define NORMAL_MEAN 1000.0
+#define NORMAL_STDDEV 250.0
+
+// A small delta value used for precision of prenormalized computations
+// leading to about 1 post-normalized rating point.
+#define D (1.0 / (NORMAL_STDDEV * 4.0))
 
 // SSEParams
 //   Parameters of the sum of squared error (SSE) function.
@@ -247,20 +255,20 @@ static void Rate(MatchHistory* history, double ratings[])
     ratings[i] = 0.0;
   }
 
-  double max_gradient = 1.0;
+  double max_gradient = 2 * D;
   double gradients[history->n];
 
   size_t progress = 0;
-  while (max_gradient > 0.001) {
+  while (max_gradient > D) {
     ComputeGradients(ratings, &p, gradients);
 
     max_gradient = 0.0;
     for (size_t i = 0; i < history->n; ++i) {
       max_gradient = fmax(max_gradient, gradients[i]);
-      ratings[i] -= 0.001 * gradients[i];
+      ratings[i] -= D * gradients[i];
     }
 
-    size_t nprogress = (size_t)(100 * 0.001 / max_gradient);
+    size_t nprogress = (size_t)(100.0 * D / max_gradient);
     if (nprogress > progress) {
       progress = nprogress;
       printf("\r%zi%% done", progress);
@@ -354,7 +362,7 @@ int main()
     var += ratings[i] * ratings[i];
   }
   var /= history->n;
-  double a = 250.0 / sqrt(var);
+  double a = NORMAL_STDDEV / sqrt(var);
 
   size_t sorted[history->n];
   SortPlayers(history->n, ratings, sorted);
@@ -363,7 +371,7 @@ int main()
   for (size_t i = 0; i < history->n; ++i) {
     size_t p = sorted[i];
     double raw = ratings[p];
-    double normal = a * raw + 1000.0;
+    double normal = a * raw + NORMAL_MEAN;
     printf("%10s %+1.4f %4.0f %zi %zi %zi\n", history->players[p], raw, normal,
         history->total_wins[p] + history->total_losses[p],
         history->total_wins[p], history->total_losses[p]);
