@@ -31,7 +31,7 @@ typedef struct {
 //  0. It is fine to take the mean to be 0 because translating the ratings
 //  does not affect the probabilities.
 //    g(x) = exp(-x^2/(2*SIGMA_SQUARED))/sqrt(2*pi*SIGMA_SQUARED)
-//  The parameter SIGMA_SQUARED is unknown, but will turn out not to matter less and less
+//  The parameter SIGMA_SQUARED is unknown, but will turn out to matter less and less
 //  as players play more games against each other.
 //
 // The ratings are determined by maximizing the probability of seeing the
