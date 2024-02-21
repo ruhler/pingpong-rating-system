@@ -3,8 +3,6 @@
 * Use same notation (variable names) in program as in document, as best as
   possible.
 
-* add -pedantic flag to gcc invocation.
-
 * Add a man page and/or help usage text for pingpong-rating-system program.
 * Add a test suite?
 
