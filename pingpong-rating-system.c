@@ -75,7 +75,7 @@ typedef struct {
   double** g;   // g(i, j) for all pairs of players (i, j).
 } Params;
 
-static size_t PlayerId(const char* name, MatchHistory* history);
+static size_t GetOrAddPlayer(const char* name, MatchHistory* history);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
@@ -87,7 +87,7 @@ static size_t* Min(size_t* a, size_t* b);
 static void SortPlayers(size_t n, double* ratings, size_t* sorted);
 
 
-// PlayerId --
+// GetOrAddPlayer --
 //   Look up or create a player id for the given player.
 //
 // Inputs:
@@ -101,7 +101,7 @@ static void SortPlayers(size_t n, double* ratings, size_t* sorted);
 //   If the player is not found in the data, the player will be added to the
 //   data. Expands (reallocs) match history data if needed to make space for
 //   a new player.
-static size_t PlayerId(const char* name, MatchHistory* history)
+static size_t GetOrAddPlayer(const char* name, MatchHistory* history)
 {
   for (size_t i = 0; i < history->n; ++i) {
     if (strcmp(name, history->players[i]) == 0) {
@@ -166,8 +166,8 @@ static MatchHistory* ReadMatchHistory()
   char loser[1024];
   size_t wins = 1;
   while (scanf(" %1000s %1000s %zu", winner, loser, &wins) >= 2) {
-    size_t w = PlayerId(winner, history);
-    size_t l = PlayerId(loser, history);
+    size_t w = GetOrAddPlayer(winner, history);
+    size_t l = GetOrAddPlayer(loser, history);
     history->wins[w][l] += wins;
     history->total_wins[w] += wins;
     history->total_losses[l] += wins;
