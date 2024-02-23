@@ -8,12 +8,14 @@
 //   Information about players and match history.
 //
 // Fields:
+//   s - The number of players space has been allocated for.
 //   n - The total number of players.
 //   players - The names of the players by player id.
 //   wins - wins[i][j] is the number of matches player i won against player j.
 //   total_wins - total_wins[i] is the total number of wins by player i.
 //   total_losses - total_losses[i] is the total number of losses by player i.
 typedef struct {
+  size_t s;
   size_t n;
   char** players;
   size_t** wins;
@@ -73,7 +75,7 @@ typedef struct {
   double** g;   // g(i, j) for all pairs of players (i, j).
 } Params;
 
-static size_t PlayerId(const char* name, MatchHistory* history, size_t* capacity);
+static size_t PlayerId(const char* name, MatchHistory* history);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
@@ -91,18 +93,15 @@ static void SortPlayers(size_t n, double* ratings, size_t* sorted);
 // Inputs:
 //   name - The name of the player to look up the id for. Borrowed.
 //   history - The existing match history.
-//   capacity - The number of players that space has been allocated for in
-//              data.
 //
 // Results:
 //   The id of the player with the given name.
 //
 // Side effects:
 //   If the player is not found in the data, the player will be added to the
-//   data. If there is not enough capacity to add the player, the capacity of
-//   the data is expanded first. Takes ownership of the memory for the name,
-//   using it or freeing it as appropriate.
-static size_t PlayerId(const char* name, MatchHistory* history, size_t* capacity)
+//   data. Expands (reallocs) match history data if needed to make space for
+//   a new player.
+static size_t PlayerId(const char* name, MatchHistory* history)
 {
   for (size_t i = 0; i < history->n; ++i) {
     if (strcmp(name, history->players[i]) == 0) {
@@ -110,21 +109,20 @@ static size_t PlayerId(const char* name, MatchHistory* history, size_t* capacity
     }
   }
 
-
-  if (*capacity == history->n) {
-    *capacity = (*capacity == 0) ? 1 : 2 * (*capacity);
-    history->players = realloc(history->players, *capacity * sizeof(char*));
-    history->wins = realloc(history->wins, *capacity * sizeof(size_t*));
+  if (history->s == history->n) {
+    history->s = (history->s == 0) ? 1 : 2 * history->s;
+    history->players = realloc(history->players, history->s * sizeof(char*));
+    history->wins = realloc(history->wins, history->s * sizeof(size_t*));
     for (size_t i = 0; i < history->n; ++i) {
-      history->wins[i] = realloc(history->wins[i], *capacity * sizeof(size_t));
+      history->wins[i] = realloc(history->wins[i], history->s * sizeof(size_t));
     }
-    history->total_wins = realloc(history->total_wins, *capacity * sizeof(size_t));
-    history->total_losses = realloc(history->total_losses, *capacity * sizeof(size_t));
+    history->total_wins = realloc(history->total_wins, history->s * sizeof(size_t));
+    history->total_losses = realloc(history->total_losses, history->s * sizeof(size_t));
   }
 
   history->players[history->n] = malloc((1 + strlen(name)) * sizeof(char));
   strcpy(history->players[history->n], name);
-  history->wins[history->n] = malloc(*capacity * sizeof(size_t));
+  history->wins[history->n] = malloc(history->s * sizeof(size_t));
   for (size_t i = 0; i < history->n; ++i) {
     history->wins[i][history->n] = 0;
     history->wins[history->n][i] = 0;
@@ -157,19 +155,19 @@ static size_t PlayerId(const char* name, MatchHistory* history, size_t* capacity
 static MatchHistory* ReadMatchHistory()
 {
   MatchHistory* history = malloc(sizeof(MatchHistory));
+  history->s = 0;
   history->n = 0;
   history->players = NULL;
   history->wins = NULL;
   history->total_wins = NULL;
   history->total_losses = NULL;
 
-  size_t capacity = 0;
   char winner[1024];
   char loser[1024];
   size_t wins = 1;
   while (scanf(" %1000s %1000s %zu", winner, loser, &wins) >= 2) {
-    size_t w = PlayerId(winner, history, &capacity);
-    size_t l = PlayerId(loser, history, &capacity);
+    size_t w = PlayerId(winner, history);
+    size_t l = PlayerId(loser, history);
     history->wins[w][l] += wins;
     history->total_wins[w] += wins;
     history->total_losses[l] += wins;

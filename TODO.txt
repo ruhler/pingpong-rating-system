@@ -6,4 +6,5 @@
 * Add a man page and/or help usage text for pingpong-rating-system program.
 * Add a test suite?
 
-* Clean up the makefile.
+* Figure out why valgrind things we use uinitialized values.
+ - cleanup allocation of the match history data structure?
