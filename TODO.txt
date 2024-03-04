@@ -1,9 +1,8 @@
-* Combine Data and Params into a single structure?
+* Sorting is clearly broken. See m2.txt for example.
+
 * Make 'K' a parameter in addition to S2.
 * Use same notation (variable names) in program as in document, as best as
   possible.
 
 * Add a man page and/or help usage text for pingpong-rating-system program.
 * Add a test suite?
-
-* Double check valgrind errors are gone now.

@@ -269,11 +269,11 @@ static void Rate(MatchHistory* history, double ratings[])
     size_t nprogress = (size_t)(100.0 * D / max_gradient);
     if (nprogress > progress) {
       progress = nprogress;
-      printf("\r%zi%% done", progress);
+      fprintf(stderr, "\r%zi%% done", progress);
       fflush(stdout);
     }
   }
-  printf("\n");
+  fprintf(stderr, "\n");
 
   for (size_t i = 0; i < history->n; i++) {
     free(p.g[i]);
@@ -370,7 +370,7 @@ int main()
     size_t p = sorted[i];
     double raw = ratings[p];
     double normal = a * raw + NORMAL_MEAN;
-    printf("%10s %+1.4f %4.0f %zi %zi %zi\n", history->players[p], raw, normal,
+    printf("%s %1.4f %4.0f %zi %zi %zi\n", history->players[p], raw, normal,
         history->total_wins[p] + history->total_losses[p],
         history->total_wins[p], history->total_losses[p]);
   }
