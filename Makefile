@@ -4,7 +4,7 @@ all: pingpong-rating-system.pdf pingpong-rating-system
 
 .PHONY: test
 test: pingpong-rating-system
-	./pingpong-rating-system < matches.txt
+	./pingpong-rating-system < m1.txt
 
 pingpong-rating-system.pdf: pingpong-rating-system.tex
 	pdflatex pingpong-rating-system.tex

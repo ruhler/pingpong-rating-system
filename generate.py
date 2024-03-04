@@ -29,5 +29,5 @@ for x in range(0, m):
   if random.uniform(0, 1) > prob(ratings[winner], ratings[loser]):
     winner, loser = loser, winner
 
-  print "p%i p%i" % (winner, loser)
+  print("p%i p%i" % (winner, loser))
 

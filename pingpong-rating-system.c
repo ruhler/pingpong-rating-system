@@ -123,7 +123,7 @@ static size_t GetOrAddPlayer(const char* name, MatchHistory* history)
   history->players[history->n] = malloc((1 + strlen(name)) * sizeof(char));
   strcpy(history->players[history->n], name);
   history->wins[history->n] = malloc(history->s * sizeof(size_t));
-  for (size_t i = 0; i < history->n; ++i) {
+  for (size_t i = 0; i <= history->n; ++i) {
     history->wins[i][history->n] = 0;
     history->wins[history->n][i] = 0;
   }
