@@ -1,5 +1,3 @@
-* Sorting is clearly broken. See m2.txt for example.
-
 * Make 'K' a parameter in addition to S2.
 * Use same notation (variable names) in program as in document, as best as
   possible.

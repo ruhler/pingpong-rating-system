@@ -1,6 +1,7 @@
 
 #include <math.h>     // for exp, sqrt
 #include <stdio.h>    // for scanf, printf
+#include <stdbool.h>  // for bool
 #include <stdlib.h>   // for malloc, free
 #include <string.h>   // for strcmp
 
@@ -83,7 +84,6 @@ static void ComputeGradients(double* v, Params* data, double* df);
 
 static void Rate(MatchHistory* history, double ratings[]);
 
-static size_t* Min(size_t* a, size_t* b);
 static void SortPlayers(size_t n, double* ratings, size_t* sorted);
 
 
@@ -283,13 +283,8 @@ static void Rate(MatchHistory* history, double ratings[])
   free(p.m);
 }
 
-static size_t* Min(size_t* a, size_t* b)
-{
-  return a < b ? a : b;
-}
-
 // SortPlayers --
-//   Sort players by rating.
+//   Sort players in decreasing order of rating.
 //
 // Inputs:
 //   n - The number of players.
@@ -303,37 +298,21 @@ static size_t* Min(size_t* a, size_t* b)
 //   Sets sorted to be a list of player ids in decreasing order of rating.
 static void SortPlayers(size_t n, double* ratings, size_t* sorted)
 {
-  size_t temp[n];
-  size_t* src = sorted;
-  size_t* dst = temp;
-
   for (size_t i = 0; i < n; ++i) {
-    src[i] = i;
+    sorted[i] = i;
   }
 
-  for (size_t w = 1; w < n; w *= 2) {
-    // Merge subarrays of width w from src to dst.
-    for (size_t i = 0; i < n; i += 2*w) {
-      size_t* a = src + i;
-      size_t* b = a + w;
-      size_t* aend = Min(a + w, src + n);
-      size_t* bend = Min(b + w, src + n);
-      size_t* z = dst + i;
-      while (a < aend || b < bend) {
-        if (b >= bend || (a < aend && ratings[*a] >= ratings[*b])) {
-          *(z++) = *(a++);
-        } else {
-          *(z++) = *(b++);
-        }
+  bool done = false;
+  while (!done) {
+    done = true;
+    for (size_t i = 0; i < n - 1; ++i) {
+      if (ratings[sorted[i]] < ratings[sorted[i+1]]) {
+        size_t tmp = sorted[i];
+        sorted[i] = sorted[i+1];
+        sorted[i+1] = tmp;
+        done = false;
       }
     }
-    size_t* tmp = src;
-    src = dst;
-    dst = tmp;
-  }
-
-  if (src != sorted) {
-    memcpy(sorted, src, n);
   }
 }
 
