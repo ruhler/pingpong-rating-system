@@ -28,15 +28,15 @@ This generates two items:
 
 The ping pong rating system takes a file as input listing match results. Each
 line lists a match winner, followed by a match loser, followed by an optional
-number of matches played. See `matches.txt` for example.
+number of matches played. See `m1.txt` and `m2.txt` for example.
 
 To run the rating system:
 
-    ./pingpong-rating-system < matches.txt
+    ./pingpong-rating-system < m1.txt
 
 It should output something like:
 
     player raw normal matches wins losses
-       richard +0.3515 1341 1 1 0
-             x -0.0865  916 2 1 1
-        jessie -0.2615  746 3 1 2
+    richard +0.3515 1341 1 1 0
+    x -0.0865 916 2 1 1
+    jessie -0.2615 746 3 1 2
