@@ -253,20 +253,23 @@ static void Rate(MatchHistory* history, double ratings[])
     ratings[i] = 0.0;
   }
 
-  double max_gradient = 2 * D;
+  double log_max_gradient = 1.0;
   double gradients[history->n];
 
   size_t progress = 0;
-  while (max_gradient > D) {
+  double max_log_max_gradient = 0;
+  while (log_max_gradient > 0) {
     ComputeGradients(ratings, &p, gradients);
 
-    max_gradient = 0.0;
+    double max_gradient = 0.0;
     for (size_t i = 0; i < history->n; ++i) {
       max_gradient = fmax(max_gradient, gradients[i]);
       ratings[i] -= D * gradients[i];
     }
+    log_max_gradient = log(max_gradient / D);
+    max_log_max_gradient = fmax(log_max_gradient, max_log_max_gradient);
 
-    size_t nprogress = (size_t)(100.0 * D / max_gradient);
+    size_t nprogress = (size_t)(100.0 * (1.0 - log_max_gradient / max_log_max_gradient));
     if (nprogress > progress) {
       progress = nprogress;
       fprintf(stderr, "\r%zi%% done", progress);
