@@ -352,7 +352,7 @@ int main()
     size_t p = sorted[i];
     double raw = ratings[p];
     double normal = a * raw + NORMAL_MEAN;
-    printf("%s %1.4f %4.0f %zi %zi %zi\n", history->players[p], raw, normal,
+    printf("%s %.4f %.0f %zi %zi %zi\n", history->players[p], raw, normal,
         history->total_wins[p] + history->total_losses[p],
         history->total_wins[p], history->total_losses[p]);
   }
