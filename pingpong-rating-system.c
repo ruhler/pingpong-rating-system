@@ -80,6 +80,8 @@ static size_t GetOrAddPlayer(const char* name, MatchHistory* history);
 static MatchHistory* ReadMatchHistory();
 static void FreeMatchHistory(MatchHistory* history);
 
+static void InitRatings(MatchHistory* history, FILE* seedfile, double* ratings);
+
 static void ComputeGradients(double* v, Params* data, double* df);
 
 static void Rate(MatchHistory* history, double ratings[]);
@@ -200,6 +202,43 @@ static void FreeMatchHistory(MatchHistory* history)
   free(history->total_losses);
   free(history);
 }
+// Initializes the rating values, optionally from a given seed file.
+// The format of the seed file, if it exists, is an entry per line of the
+// form:
+//   <player> <rating>
+//
+// It's okay if there is additional information on a line after the player and
+// raw rating. That way you can use the rating output of this program as the
+// seed file for input.
+static void InitRatings(MatchHistory* history, FILE* seedfile, double* ratings)
+{
+  for (size_t i = 0; i < history->n; ++i) {
+    ratings[i] = 0.0;
+  }
+
+  if (seedfile != NULL) {
+    size_t seedcount = 0;
+    char player[1024];
+    double seed;
+    while (!feof(seedfile)) {
+      if (fscanf(seedfile, " %1000s %lf ", player, &seed) == 2) {
+        for (size_t i = 0; i < history->n; ++i) {
+          if (strcmp(player, history->players[i]) == 0) {
+            ratings[i] = seed;
+            seedcount++;
+            break;
+          }
+        }
+      }
+
+      int c = 0;
+      while (c != '\n' && c != EOF) {
+        c = fgetc(seedfile);
+      }
+    }
+    fprintf(stderr, "Seeded %zi player ratings.\n", seedcount);
+  }
+}
 
 // ComputeGradients - The gradiant of the sum of the squared error (SSE).
 static void ComputeGradients(double* v, Params* data, double* df) {
@@ -246,11 +285,6 @@ static void Rate(MatchHistory* history, double ratings[])
     for (size_t j = 0; j < history->n; ++j) {
       p.g[i][j] = (double)(history->wins[i][j] + history->wins[j][i]) / p.m[i];
     }
-  }
-
-  // Initialize the ratings.
-  for (size_t i = 0; i < history->n; ++i) {
-    ratings[i] = 0.0;
   }
 
   double log_max_gradient = 1.0;
@@ -331,10 +365,22 @@ static void SortPlayers(size_t n, double* ratings, size_t* sorted)
 //
 // Side effects:
 //   Reads match data from stdin and outputs rating results to stdout.
-int main()
+int main(int argc, const char** argv)
 {
+  FILE* seedfile = NULL;
+  if (argc > 2 && strcmp(argv[1], "--seed") == 0) {
+    seedfile = fopen(argv[2], "r");
+    if (seedfile == NULL) {
+      fprintf(stderr, "unable to open seed file '%s'\n", argv[2]);
+      return 1;
+    }
+  }
+
   MatchHistory* history = ReadMatchHistory();
+
   double ratings[history->n];
+  InitRatings(history, seedfile, ratings);
+
   Rate(history, ratings);
 
   double var = 0;
